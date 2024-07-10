@@ -2,6 +2,7 @@ package eip712
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"math/big"
 	"strings"
 	"testing"
@@ -143,28 +144,36 @@ func TestEIP712(t *testing.T) {
 		Types:       types,
 		PrimaryType: "Mail",
 		Domain:      domain,
-		Message: map[string]interface{}{
-			"contents": "Hello, Bob!",
-			"from": map[string]interface{}{
-				"name": "Cow",
-				"wallets": []string{
-					"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
-					"0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF",
-				},
-			},
-			"to": []map[string]interface{}{
-				{
-					"name": "Bob",
-					"wallets": []string{
-						"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
-						"0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57",
-						"0xB0B0b0b0b0b0B000000000000000000000000000",
-					},
-				},
-			},
-			"attachment": "0x",
-		},
 	}
+
+	jsonData := `{
+		"contents": "Hello, Bob!",
+		"from": {
+		  "name": "Cow",
+		  "wallets": [
+			"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+			"0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF"
+		  ]
+		},
+		"to": [
+		  {
+			"name": "Bob",
+			"wallets": [
+			  "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+			  "0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57",
+			  "0xB0B0b0b0b0b0B000000000000000000000000000"
+			]
+		  }
+		],
+		"attachment": "0x"
+	  } `
+
+	var message map[string]interface{}
+	err := json.Unmarshal([]byte(jsonData), &message)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+	typedData.Message = message
 
 	hash, raw, err := apitypes.TypedDataAndHash(typedData)
 	require.NoError(t, err)
