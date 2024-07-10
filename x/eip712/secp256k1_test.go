@@ -1,46 +1,13 @@
-package hellosigs
+package eip712
 
 import (
-	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
-
-func signMessage(privateKey *ecdsa.PrivateKey, data []byte) ([]byte, error) {
-	fullMessage := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data)
-	hash := crypto.Keccak256Hash([]byte(fullMessage))
-	signature, err := crypto.Sign(hash.Bytes(), privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign message: %v", err)
-	}
-
-	// Transform V from 0/1 to 27/28 according to the yellow paper
-	signature[crypto.RecoveryIDOffset] += 27
-
-	return signature, nil
-}
-
-func recoverAddress(hash common.Hash, signature []byte) (common.Address, error) {
-	// Transform V from 27/28 to 0/1
-	signature[crypto.RecoveryIDOffset] -= 27
-
-	sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signature)
-	if err != nil {
-		return common.Address{}, fmt.Errorf("failed to recover public key: %v", err)
-	}
-
-	pubKey, err := crypto.UnmarshalPubkey(sigPublicKey)
-	if err != nil {
-		return common.Address{}, fmt.Errorf("failed to unmarshal public key: %v", err)
-	}
-
-	return crypto.PubkeyToAddress(*pubKey), nil
-}
 
 func TestEthSigs(t *testing.T) {
 	privateKey, err := crypto.HexToECDSA("fad9c8855b740a0b7ed4c221dbad0f33a83a49cad6b3fe8d5817ac83d38b6a19")
@@ -51,7 +18,7 @@ func TestEthSigs(t *testing.T) {
 	data := []byte("Example `personal_sign` message")
 
 	// Sign the data
-	signature, err := signMessage(privateKey, data)
+	signature, err := SignMessageEth(privateKey, data)
 	if err != nil {
 		t.Fatalf("Failed to sign message: %v", err)
 	}
@@ -71,7 +38,7 @@ func TestEthSigs(t *testing.T) {
 	// Recover address
 	fullMessage := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data)
 	hash := crypto.Keccak256Hash([]byte(fullMessage))
-	recoveredAddress, err := recoverAddress(hash, signature)
+	recoveredAddress, err := RecoverAddressEth(hash, signature)
 	if err != nil {
 		t.Fatalf("Failed to recover address: %v", err)
 	}
