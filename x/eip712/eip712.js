@@ -31,7 +31,7 @@ async function start() {
             ],
             attachment: '0x',
         },
-        primaryType: 'Mail' as const,
+        primaryType: 'Mail' ,
         types: {
             EIP712Domain: [
                 { name: 'name', type: 'string' },
