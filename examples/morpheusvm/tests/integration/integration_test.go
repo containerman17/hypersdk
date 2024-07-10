@@ -5,6 +5,7 @@ package integration_test
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -33,8 +34,6 @@ import (
 	"github.com/ava-labs/hypersdk/chain"
 	"github.com/ava-labs/hypersdk/codec"
 	"github.com/ava-labs/hypersdk/consts"
-	"github.com/ava-labs/hypersdk/crypto/ed25519"
-	"github.com/ava-labs/hypersdk/crypto/secp256r1"
 	"github.com/ava-labs/hypersdk/examples/morpheusvm/actions"
 	"github.com/ava-labs/hypersdk/examples/morpheusvm/auth"
 	"github.com/ava-labs/hypersdk/examples/morpheusvm/controller"
@@ -43,6 +42,7 @@ import (
 	"github.com/ava-labs/hypersdk/pubsub"
 	"github.com/ava-labs/hypersdk/rpc"
 	"github.com/ava-labs/hypersdk/vm"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 
 	hbls "github.com/ava-labs/hypersdk/crypto/bls"
 	lconsts "github.com/ava-labs/hypersdk/examples/morpheusvm/consts"
@@ -58,21 +58,21 @@ var (
 	requestTimeout time.Duration
 	vms            int
 
-	priv    ed25519.PrivateKey
-	pk      ed25519.PublicKey
-	factory *auth.ED25519Factory
+	priv    *ecdsa.PrivateKey
+	pk      *ecdsa.PublicKey
+	factory *auth.SECP256K1Factory
 	addr    codec.Address
 	addrStr string
 
-	priv2    ed25519.PrivateKey
-	pk2      ed25519.PublicKey
-	factory2 *auth.ED25519Factory
+	priv2    *ecdsa.PrivateKey
+	pk2      *ecdsa.PublicKey
+	factory2 *auth.SECP256K1Factory
 	addr2    codec.Address
 	addrStr2 string
 
-	priv3    ed25519.PrivateKey
-	pk3      ed25519.PublicKey
-	factory3 *auth.ED25519Factory
+	priv3    *ecdsa.PrivateKey
+	pk3      *ecdsa.PublicKey
+	factory3 *auth.SECP256K1Factory
 	addr3    codec.Address
 	addrStr3 string
 
@@ -134,40 +134,40 @@ var _ = ginkgo.BeforeSuite(func() {
 	require.Greater(vms, 1)
 
 	var err error
-	priv, err = ed25519.GeneratePrivateKey()
+	priv, err = ethCrypto.GenerateKey()
 	require.NoError(err)
-	pk = priv.PublicKey()
-	factory = auth.NewED25519Factory(priv)
-	addr = auth.NewED25519Address(pk)
+	pk = &priv.PublicKey
+	factory = auth.NewSECP256K1Factory(priv)
+	addr = auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(pk))
 	addrStr = codec.MustAddressBech32(lconsts.HRP, addr)
 	log.Debug(
 		"generated key",
 		zap.String("addr", addrStr),
-		zap.String("pk", hex.EncodeToString(priv[:])),
+		zap.String("pk", hex.EncodeToString(ethCrypto.FromECDSA(priv))),
 	)
 
-	priv2, err = ed25519.GeneratePrivateKey()
+	priv2, err = ethCrypto.GenerateKey()
 	require.NoError(err)
-	pk2 = priv2.PublicKey()
-	factory2 = auth.NewED25519Factory(priv2)
-	addr2 = auth.NewED25519Address(pk2)
+	pk2 = &priv2.PublicKey
+	factory2 = auth.NewSECP256K1Factory(priv2)
+	addr2 = auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(pk2))
 	addrStr2 = codec.MustAddressBech32(lconsts.HRP, addr2)
 	log.Debug(
 		"generated key",
 		zap.String("addr", addrStr2),
-		zap.String("pk", hex.EncodeToString(priv2[:])),
+		zap.String("pk", hex.EncodeToString(ethCrypto.FromECDSA(priv2))),
 	)
 
-	priv3, err = ed25519.GeneratePrivateKey()
+	priv3, err = ethCrypto.GenerateKey()
 	require.NoError(err)
-	pk3 = priv3.PublicKey()
-	factory3 = auth.NewED25519Factory(priv3)
-	addr3 = auth.NewED25519Address(pk3)
+	pk3 = &priv3.PublicKey
+	factory3 = auth.NewSECP256K1Factory(priv3)
+	addr3 = auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(pk3))
 	addrStr3 = codec.MustAddressBech32(lconsts.HRP, addr3)
 	log.Debug(
 		"generated key",
 		zap.String("addr", addrStr3),
-		zap.String("pk", hex.EncodeToString(priv3[:])),
+		zap.String("pk", hex.EncodeToString(ethCrypto.FromECDSA(priv3))),
 	)
 
 	// create embedded VMs
@@ -324,8 +324,8 @@ var _ = ginkgo.Describe("[Tx Processing]", func() {
 	// read: 2 keys reads
 	// allocate: 1 key created with 1 chunk
 	// write: 2 keys modified
-	transferTxUnits := fees.Dimensions{188, 7, 14, 50, 26}
-	transferTxFee := uint64(285)
+	transferTxUnits := fees.Dimensions{222, 12, 14, 50, 26}
+	transferTxFee := uint64(324)
 
 	ginkgo.It("get currently accepted block ID", func() {
 		for _, inst := range instances {
@@ -446,7 +446,7 @@ var _ = ginkgo.Describe("[Tx Processing]", func() {
 		ginkgo.By("ensure balance is updated", func() {
 			balance, err := instances[1].lcli.Balance(context.Background(), addrStr)
 			require.NoError(err)
-			require.Equal(balance, uint64(9_899_715))
+			require.Equal(balance, uint64(9_899_676))
 			balance2, err := instances[1].lcli.Balance(context.Background(), addrStr2)
 			require.NoError(err)
 			require.Equal(balance2, uint64(100_000))
@@ -683,10 +683,10 @@ var _ = ginkgo.Describe("[Tx Processing]", func() {
 		require.NoError(err)
 
 		// Send tx
-		other, err := ed25519.GeneratePrivateKey()
+		other, err := ethCrypto.GenerateKey()
 		require.NoError(err)
 		transfer := []chain.Action{&actions.Transfer{
-			To:    auth.NewED25519Address(other.PublicKey()),
+			To:    auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(&other.PublicKey)),
 			Value: 1,
 		}}
 
@@ -731,10 +731,10 @@ var _ = ginkgo.Describe("[Tx Processing]", func() {
 		require.NoError(err)
 
 		// Create tx
-		other, err := ed25519.GeneratePrivateKey()
+		other, err := ethCrypto.GenerateKey()
 		require.NoError(err)
 		transfer := []chain.Action{&actions.Transfer{
-			To:    auth.NewED25519Address(other.PublicKey()),
+			To:    auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(&other.PublicKey)),
 			Value: 1,
 		}}
 		parser, err := instances[0].lcli.Parser(context.Background())
@@ -777,12 +777,11 @@ var _ = ginkgo.Describe("[Tx Processing]", func() {
 		require.NoError(cli.Close())
 	})
 
-	ginkgo.It("sends tokens between ed25519 and secp256r1 addresses", func() {
-		r1priv, err := secp256r1.GeneratePrivateKey()
+	ginkgo.It("sends tokens between secp256r1 and secp256r1 addresses", func() {
+		r1priv, err := ethCrypto.GenerateKey()
 		require.NoError(err)
-		r1pk := r1priv.PublicKey()
-		r1factory := auth.NewSECP256R1Factory(r1priv)
-		r1addr := auth.NewSECP256R1Address(r1pk)
+		r1factory := auth.NewSECP256K1Factory(r1priv)
+		r1addr := auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(&r1priv.PublicKey))
 
 		ginkgo.By("send to secp256r1", func() {
 			parser, err := instances[0].lcli.Parser(context.Background())
@@ -808,7 +807,7 @@ var _ = ginkgo.Describe("[Tx Processing]", func() {
 			require.Equal(balance, uint64(2000))
 		})
 
-		ginkgo.By("send back to ed25519", func() {
+		ginkgo.By("send back to secp256r1", func() {
 			parser, err := instances[0].lcli.Parser(context.Background())
 			require.NoError(err)
 			submit, _, _, err := instances[0].cli.GenerateTransaction(
@@ -829,7 +828,7 @@ var _ = ginkgo.Describe("[Tx Processing]", func() {
 		})
 	})
 
-	ginkgo.It("sends tokens between ed25519 and bls addresses", func() {
+	ginkgo.It("sends tokens between secp256r1 and bls addresses", func() {
 		r1priv, err := hbls.GeneratePrivateKey()
 		require.NoError(err)
 		r1pk := hbls.PublicFromPrivateKey(r1priv)
@@ -860,7 +859,7 @@ var _ = ginkgo.Describe("[Tx Processing]", func() {
 			require.Equal(balance, uint64(2000))
 		})
 
-		ginkgo.By("send back to ed25519 (in separate actions)", func() {
+		ginkgo.By("send back to secp256r1 (in separate actions)", func() {
 			bbalance, err := instances[0].lcli.Balance(context.TODO(), codec.MustAddressBech32(lconsts.HRP, addr))
 			require.NoError(err)
 

@@ -11,4 +11,5 @@ const (
 	ED25519ID   uint8 = 0
 	SECP256R1ID uint8 = 1
 	BLSID       uint8 = 2
+	SECP256K1ID uint8 = 3
 )

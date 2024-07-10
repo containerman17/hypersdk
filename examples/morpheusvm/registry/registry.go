@@ -25,8 +25,8 @@ func init() {
 
 		// When registering new auth, ALWAYS make sure to append at the end.
 		consts.AuthRegistry.Register((&auth.ED25519{}).GetTypeID(), auth.UnmarshalED25519, false),
-		consts.AuthRegistry.Register((&auth.SECP256R1{}).GetTypeID(), auth.UnmarshalSECP256R1, false),
 		consts.AuthRegistry.Register((&auth.BLS{}).GetTypeID(), auth.UnmarshalBLS, false),
+		consts.AuthRegistry.Register((&auth.SECP256K1{}).GetTypeID(), auth.UnmarshalSECP256K1, false),
 	)
 	if errs.Errored() {
 		panic(errs.Err)
