@@ -173,7 +173,7 @@
                     // Give a user-friendly name to the specific contract you're signing for.
                     name: "MySubnet",
                     // Add a verifying contract to make sure you're establishing contracts with the proper entity.
-                    verifyingContract: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
+                    verifyingContract: "0x",
                     // This identifies the latest version.
                     version: "1",
                 },
@@ -184,7 +184,8 @@
                 message: {
                     expiration: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
                     maxFee: '123.02',
-                    transfer:
+                    action: "Transfer",
+                    params:
                     {
                         to: '0xc0dec0dec0dec0dec0dec0dec0dec0dec0dec0de',
                         amount: '1234.56',
@@ -203,9 +204,10 @@
                     Transaction: [
                         { name: 'expiration', type: 'string' },
                         { name: 'maxFee', type: 'string' },
-                        { name: 'transfer', type: 'Transfer' },
+                        { name: 'action', type: 'string' },
+                        { name: 'params', type: 'Params' },
                     ],
-                    Transfer: [
+                    Params: [
                         { name: 'to', type: 'address' },
                         { name: 'amount', type: 'string' },
                     ],
