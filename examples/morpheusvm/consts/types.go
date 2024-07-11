@@ -12,4 +12,5 @@ const (
 	SECP256R1ID uint8 = 1
 	BLSID       uint8 = 2
 	SECP256K1ID uint8 = 3
+	EIP712ID    uint8 = 4
 )
