@@ -163,34 +163,32 @@
         async function signStructuredTailored() {
             await connect();
 
+            const toGoStyleIsoString = (date) => {
+                return date.toISOString().slice(0, -5) + 'Z'
+            }
 
             const chainId = await provider.request({ method: 'eth_chainId' });
             // eth_signTypedData_v4 parameters. All of these parameters affect the resulting signature.
             const msgParams = JSON.stringify({
                 domain: {
-                    // This defines the network, in this case, Mainnet.
                     chainId: 43114,
-                    // Give a user-friendly name to the specific contract you're signing for.
-                    name: "HyperSDK",
-                    // Add a verifying contract to make sure you're establishing contracts with the proper entity.
-                    verifyingContract: "0x",
-                    // This identifies the latest version.
-                    version: "1",
+                    name: 'HyperSDK',
+                    verifyingContract: '0x0000000000000000000000000000000000000000',
+                    version: '1',
                 },
 
                 // This defines the message you're proposing the user to sign, is dapp-specific, and contains
                 // anything you want. There are no required fields. Be as explicit as possible when building out
                 // the message schema.
                 message: {
-                    expiration: new Date(1717111222333).toISOString(),
-                    maxFee: '100000',
-                    action: "transfer",
+                    expiration: toGoStyleIsoString(new Date(1717111222333)),
+                    maxFee: '10.000000000',
+                    action: "Transfer",
                     params:
                     {
-                        to: '0xc0dec0dec0dec0dec0dec0dec0dec0dec0dec0de',
-                        amount: '1234.56',
+                        to: 'morpheus1qypqxpq9qcrsszg2pvxq6rs0zqqqqqqqqqqqqqqqqqqqqqqqqqqqql22w7h',
+                        value: '123.000000000',
                     },
-
                 },
                 // This refers to the keys of the following types object.
                 primaryType: "Transaction",
@@ -201,16 +199,16 @@
                         { name: 'chainId', type: 'uint256' },
                         { name: 'verifyingContract', type: 'address' },
                     ],
-                    Transaction: [
-                        { name: 'expiration', type: 'string' },
-                        { name: 'maxFee', type: 'string' },
-                        { name: 'action', type: 'string' },
-                        { name: 'params', type: 'Params' },
+                    "Transaction": [
+                        { name: "expiration", type: "string" },
+                        { name: "maxFee", type: "string" },
+                        { name: "action", type: "string" },
+                        { name: "params", type: "Params" },
                     ],
-                    Params: [
-                        { name: 'to', type: 'address' },
-                        { name: 'value', type: 'string' },
-                    ],
+                    "Params": [
+                        { name: "to", type: "string", },
+                        { name: "value", type: "string" },
+                    ]
                 },
             });
 
