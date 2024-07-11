@@ -57,66 +57,9 @@ func (*EIP712) ValidRange(chain.Rules) (int64, int64) {
 }
 
 func (d *EIP712) Verify(_ context.Context, tx *chain.Transaction) error {
-	if len(tx.Actions) != 1 {
-		return fmt.Errorf("only one action is allowed with EIP712 auth")
-	}
-
-	action := tx.Actions[0]
-
-	types := map[string][]eip712.Type{
-		"EIP712Domain": {
-			{Name: "name", Type: "string"},
-			{Name: "version", Type: "string"},
-			{Name: "chainId", Type: "uint256"},
-			{Name: "verifyingContract", Type: "address"},
-		},
-		"Transaction": {
-			{Name: "expiration", Type: "string"},
-			{Name: "maxFee", Type: "string"},
-			{Name: "action", Type: "string"},
-			{Name: "params", Type: "Params"},
-		},
-		"Params": generateTypeArrayFromStruct(action),
-	}
-
-	domain := eip712.TypedDataDomain{
-		Name:              "HyperSDK",
-		Version:           "1",
-		ChainId:           (*math.HexOrDecimal256)(bytes32ToBigInt(tx.Base.ChainID)),
-		VerifyingContract: "0x0000000000000000000000000000000000000000",
-		Salt:              "",
-	}
-
-	actionName := reflect.TypeOf(action).Name()
-
-	typedData := eip712.TypedData{
-		Types:       types,
-		PrimaryType: "Transaction",
-		Domain:      domain,
-		Message: map[string]interface{}{
-			"expiration": timestampToIsoString(tx.Base.Timestamp),
-			"maxFee":     utils.FormatBalance(tx.Base.MaxFee, mconsts.Decimals),
-			"action":     actionName,
-			"params":     map[string]interface{}{}, //will be filled later
-		},
-	}
-
-	paramsJSON, err := json.Marshal(action)
+	hash, err := eip712hashTx(tx)
 	if err != nil {
-		return fmt.Errorf("failed to marshal action to JSON: %w", err)
-	}
-
-	var paramsMap map[string]interface{}
-	err = json.Unmarshal(paramsJSON, &paramsMap)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal JSON to map: %w", err)
-	}
-
-	typedData.Message["params"] = paramsMap
-
-	hash, _, err := eip712.TypedDataAndHash(typedData)
-	if err != nil {
-		return fmt.Errorf("failed to hash typed data: %v", err)
+		return err
 	}
 
 	sigPublicKey, err := ethCrypto.Ecrecover(hash, d.Signature)
@@ -168,12 +111,10 @@ func NewEIP712Factory(priv *ecdsa.PrivateKey) *EIP712Factory {
 	return &EIP712Factory{priv}
 }
 
-func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
+func eip712hashTx(tx *chain.Transaction) ([]byte, error) {
 	if len(tx.Actions) != 1 {
 		return nil, fmt.Errorf("only one action is allowed with EIP712 auth")
 	}
-
-	action := tx.Actions[0]
 
 	types := map[string][]eip712.Type{
 		"EIP712Domain": {
@@ -188,7 +129,7 @@ func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
 			{Name: "action", Type: "string"},
 			{Name: "params", Type: "Params"},
 		},
-		"Params": generateTypeArrayFromStruct(action),
+		"Params": generateTypeArrayFromStruct(tx.Actions[0]),
 	}
 
 	domain := eip712.TypedDataDomain{
@@ -199,7 +140,7 @@ func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
 		Salt:              "",
 	}
 
-	actionName := reflect.TypeOf(action).Elem().Name()
+	actionName := reflect.TypeOf(tx.Actions[0]).Elem().Name()
 
 	typedData := eip712.TypedData{
 		Types:       types,
@@ -213,7 +154,7 @@ func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
 		},
 	}
 
-	paramsJSON, err := json.Marshal(action)
+	paramsJSON, err := json.Marshal(tx.Actions[0])
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal action to JSON: %w", err)
 	}
@@ -231,12 +172,14 @@ func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
 		return nil, fmt.Errorf("failed to hash typed data: %v", err)
 	}
 
-	typedDataJSON, err := json.Marshal(typedData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal typed data to JSON: %w", err)
-	}
+	return hash, nil
+}
 
-	fmt.Println(string(typedDataJSON))
+func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
+	hash, err := eip712hashTx(tx)
+	if err != nil {
+		return nil, err
+	}
 
 	signature, err := eip712.SignHashEth(d.priv, hash)
 	if err != nil {

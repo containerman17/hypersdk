@@ -27,13 +27,18 @@ func TestGenerateTypeArrayFromStruct(t *testing.T) {
 }
 
 func TestEip712(t *testing.T) {
+	actionRegistry := codec.NewTypeParser[chain.Action]()
+	authRegistry := codec.NewTypeParser[chain.Auth]()
+	actionRegistry.Register((&actions.Transfer{}).GetTypeID(), actions.UnmarshalTransfer, false)
+	authRegistry.Register((&EIP712{}).GetTypeID(), UnmarshalEIP712, false)
+
 	privateKey, err := crypto.HexToECDSA("fad9c8855b740a0b7ed4c221dbad0f33a83a49cad6b3fe8d5817ac83d38b6a19")
 	require.NoError(t, err)
 
 	authFactory := NewEIP712Factory(privateKey)
 
 	tx := &chain.Transaction{
-		Base: &chain.Base{Timestamp: 1717111222333, ChainID: ids.ID(bigIntToBytes(big.NewInt(123456789))), MaxFee: 10 * 1_000_000_000},
+		Base: &chain.Base{Timestamp: 1717111222000, ChainID: ids.ID(bigIntToBytes(big.NewInt(123456789))), MaxFee: 10 * 1_000_000_000},
 		Actions: []chain.Action{&actions.Transfer{
 			To:    codec.Address{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 			Value: 123 * 1_000_000_000,
@@ -41,10 +46,10 @@ func TestEip712(t *testing.T) {
 		Auth: nil,
 	}
 
-	signedAuth, err := authFactory.Sign(tx)
+	signedTx, err := tx.Sign(authFactory, actionRegistry, authRegistry)
 	require.NoError(t, err)
 
-	signedAuthEIP712, ok := signedAuth.(*EIP712)
+	signedAuthEIP712, ok := signedTx.Auth.(*EIP712)
 	require.True(t, ok)
 
 	expectedSig := "0xd72250dd84c68a111707e237b166f8d2f847d6c3d49bece4d2ca56c7688628ad5f200d0a75cd9a68d09abb8a40eb7df1c4992f65d7cdd5a1e79dacc1baa7171a1b"
