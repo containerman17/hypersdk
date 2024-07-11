@@ -60,19 +60,19 @@ var (
 
 	priv    *ecdsa.PrivateKey
 	pk      *ecdsa.PublicKey
-	factory *auth.SECP256K1Factory
+	factory *auth.EIP712Factory
 	addr    codec.Address
 	addrStr string
 
 	priv2    *ecdsa.PrivateKey
 	pk2      *ecdsa.PublicKey
-	factory2 *auth.SECP256K1Factory
+	factory2 *auth.EIP712Factory
 	addr2    codec.Address
 	addrStr2 string
 
 	priv3    *ecdsa.PrivateKey
 	pk3      *ecdsa.PublicKey
-	factory3 *auth.SECP256K1Factory
+	factory3 *auth.EIP712Factory
 	addr3    codec.Address
 	addrStr3 string
 
@@ -137,8 +137,8 @@ var _ = ginkgo.BeforeSuite(func() {
 	priv, err = ethCrypto.GenerateKey()
 	require.NoError(err)
 	pk = &priv.PublicKey
-	factory = auth.NewSECP256K1Factory(priv)
-	addr = auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(pk))
+	factory = auth.NewEIP712Factory(priv)
+	addr = auth.NewEIP712Address(ethCrypto.FromECDSAPub(pk))
 	addrStr = codec.MustAddressBech32(lconsts.HRP, addr)
 	log.Debug(
 		"generated key",
@@ -149,8 +149,8 @@ var _ = ginkgo.BeforeSuite(func() {
 	priv2, err = ethCrypto.GenerateKey()
 	require.NoError(err)
 	pk2 = &priv2.PublicKey
-	factory2 = auth.NewSECP256K1Factory(priv2)
-	addr2 = auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(pk2))
+	factory2 = auth.NewEIP712Factory(priv2)
+	addr2 = auth.NewEIP712Address(ethCrypto.FromECDSAPub(pk2))
 	addrStr2 = codec.MustAddressBech32(lconsts.HRP, addr2)
 	log.Debug(
 		"generated key",
@@ -161,8 +161,8 @@ var _ = ginkgo.BeforeSuite(func() {
 	priv3, err = ethCrypto.GenerateKey()
 	require.NoError(err)
 	pk3 = &priv3.PublicKey
-	factory3 = auth.NewSECP256K1Factory(priv3)
-	addr3 = auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(pk3))
+	factory3 = auth.NewEIP712Factory(priv3)
+	addr3 = auth.NewEIP712Address(ethCrypto.FromECDSAPub(pk3))
 	addrStr3 = codec.MustAddressBech32(lconsts.HRP, addr3)
 	log.Debug(
 		"generated key",
@@ -684,7 +684,7 @@ var _ = ginkgo.Describe("[Tx Processing]", func() {
 		other, err := ethCrypto.GenerateKey()
 		require.NoError(err)
 		transfer := []chain.Action{&actions.Transfer{
-			To:    auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(&other.PublicKey)),
+			To:    auth.NewEIP712Address(ethCrypto.FromECDSAPub(&other.PublicKey)),
 			Value: 1,
 		}}
 
@@ -732,7 +732,7 @@ var _ = ginkgo.Describe("[Tx Processing]", func() {
 		other, err := ethCrypto.GenerateKey()
 		require.NoError(err)
 		transfer := []chain.Action{&actions.Transfer{
-			To:    auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(&other.PublicKey)),
+			To:    auth.NewEIP712Address(ethCrypto.FromECDSAPub(&other.PublicKey)),
 			Value: 1,
 		}}
 		parser, err := instances[0].lcli.Parser(context.Background())
@@ -778,8 +778,8 @@ var _ = ginkgo.Describe("[Tx Processing]", func() {
 	ginkgo.It("sends tokens between secp256r1 and secp256r1 addresses", func() {
 		r1priv, err := ethCrypto.GenerateKey()
 		require.NoError(err)
-		r1factory := auth.NewSECP256K1Factory(r1priv)
-		r1addr := auth.NewSECP256K1Address(ethCrypto.FromECDSAPub(&r1priv.PublicKey))
+		r1factory := auth.NewEIP712Factory(r1priv)
+		r1addr := auth.NewEIP712Address(ethCrypto.FromECDSAPub(&r1priv.PublicKey))
 
 		ginkgo.By("send to secp256r1", func() {
 			parser, err := instances[0].lcli.Parser(context.Background())
