@@ -49,7 +49,12 @@ func (*SECP256K1) ValidRange(chain.Rules) (int64, int64) {
 	return -1, -1
 }
 
-func (d *SECP256K1) Verify(_ context.Context, msg []byte) error {
+func (d *SECP256K1) Verify(_ context.Context, tx *chain.Transaction) error {
+	msg, err := tx.Digest()
+	if err != nil {
+		return fmt.Errorf("failed to get digest: %w", err)
+	}
+
 	fullMessage := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(msg), msg)
 	hash := ethCrypto.Keccak256Hash([]byte(fullMessage))
 
@@ -66,8 +71,6 @@ func (d *SECP256K1) Verify(_ context.Context, msg []byte) error {
 	if !ethCrypto.VerifySignature(sigPublicKey, hash.Bytes(), signature[:len(signature)-1]) {
 		return crypto.ErrInvalidSignature
 	}
-
-	fmt.Printf(".SECP256K1.Verify sigPublicKey: %v\n", sigPublicKey)
 
 	return nil
 }
@@ -108,7 +111,11 @@ func NewSECP256K1Factory(priv *ecdsa.PrivateKey) *SECP256K1Factory {
 	return &SECP256K1Factory{priv}
 }
 
-func (d *SECP256K1Factory) Sign(msg []byte) (chain.Auth, error) {
+func (d *SECP256K1Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
+	msg, err := tx.Digest()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get digest: %w", err)
+	}
 	fullMessage := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(msg), msg)
 	hash := ethCrypto.Keccak256Hash([]byte(fullMessage))
 	signature, err := ethCrypto.Sign(hash.Bytes(), d.priv)

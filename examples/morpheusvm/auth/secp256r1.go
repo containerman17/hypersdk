@@ -5,6 +5,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ava-labs/hypersdk/chain"
 	"github.com/ava-labs/hypersdk/codec"
@@ -47,7 +48,11 @@ func (*SECP256R1) ValidRange(chain.Rules) (int64, int64) {
 	return -1, -1
 }
 
-func (d *SECP256R1) Verify(_ context.Context, msg []byte) error {
+func (d *SECP256R1) Verify(_ context.Context, tx *chain.Transaction) error {
+	msg, err := tx.Digest()
+	if err != nil {
+		return fmt.Errorf("failed to get digest: %w", err)
+	}
 	if !secp256r1.Verify(msg, d.Signer, d.Signature) {
 		return crypto.ErrInvalidSignature
 	}
@@ -90,7 +95,11 @@ func NewSECP256R1Factory(priv secp256r1.PrivateKey) *SECP256R1Factory {
 	return &SECP256R1Factory{priv}
 }
 
-func (d *SECP256R1Factory) Sign(msg []byte) (chain.Auth, error) {
+func (d *SECP256R1Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
+	msg, err := tx.Digest()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get digest: %w", err)
+	}
 	sig, err := secp256r1.Sign(msg, d.priv)
 	if err != nil {
 		return nil, err

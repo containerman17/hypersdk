@@ -5,6 +5,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ava-labs/hypersdk/chain"
 	"github.com/ava-labs/hypersdk/codec"
@@ -47,8 +48,12 @@ func (*ED25519) ValidRange(chain.Rules) (int64, int64) {
 	return -1, -1
 }
 
-func (d *ED25519) Verify(_ context.Context, msg []byte) error {
-	if !ed25519.Verify(msg, d.Signer, d.Signature) {
+func (d *ED25519) Verify(_ context.Context, tx *chain.Transaction) error {
+	digest, err := tx.Digest()
+	if err != nil {
+		return fmt.Errorf("failed to get digest: %w", err)
+	}
+	if !ed25519.Verify(digest, d.Signer, d.Signature) {
 		return crypto.ErrInvalidSignature
 	}
 	return nil
@@ -90,8 +95,12 @@ type ED25519Factory struct {
 	priv ed25519.PrivateKey
 }
 
-func (d *ED25519Factory) Sign(msg []byte) (chain.Auth, error) {
-	sig := ed25519.Sign(msg, d.priv)
+func (d *ED25519Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
+	digest, err := tx.Digest()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get digest: %w", err)
+	}
+	sig := ed25519.Sign(digest, d.priv)
 	return &ED25519{Signer: d.priv.PublicKey(), Signature: sig}, nil
 }
 
@@ -122,10 +131,17 @@ type ED25519Batch struct {
 	batch        *ed25519.Batch
 }
 
-func (b *ED25519Batch) Add(msg []byte, rauth chain.Auth) func() error {
+func (b *ED25519Batch) Add(tx *chain.Transaction, rauth chain.Auth) func() error {
 	auth := rauth.(*ED25519)
 	if b.batch == nil {
 		b.batch = ed25519.NewBatch(b.batchSize)
+	}
+
+	msg, err := tx.Digest()
+	if err != nil {
+		return func() error {
+			return fmt.Errorf("failed to get digest: %w", err)
+		}
 	}
 	b.batch.Add(msg, auth.Signer, auth.Signature)
 	b.counter++

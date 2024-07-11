@@ -73,7 +73,7 @@ func (t *Transaction) Sign(
 	if err != nil {
 		return nil, err
 	}
-	auth, err := factory.Sign(msg)
+	auth, err := factory.Sign(t)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (t *Transaction) Sign(
 
 	// Ensure transaction is fully initialized and correct by reloading it from
 	// bytes
-	size := len(msg) + consts.ByteLen + t.Auth.Size()
+	size := len(msg) + consts.ByteLen + t.Auth.Size() //FIXME: might call Digest twice
 	p := codec.NewWriter(size, consts.NetworkSizeLimit)
 	if err := t.Marshal(p); err != nil {
 		return nil, err

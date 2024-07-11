@@ -5,6 +5,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ava-labs/hypersdk/chain"
 	"github.com/ava-labs/hypersdk/codec"
@@ -47,8 +48,13 @@ func (*BLS) ValidRange(chain.Rules) (int64, int64) {
 	return -1, -1
 }
 
-func (b *BLS) Verify(_ context.Context, msg []byte) error {
-	if !bls.Verify(msg, b.Signer, b.Signature) {
+func (b *BLS) Verify(_ context.Context, tx *chain.Transaction) error {
+	digest, err := tx.Digest()
+	if err != nil {
+		return fmt.Errorf("failed to get digest: %w", err)
+	}
+
+	if !bls.Verify(digest, b.Signer, b.Signature) {
 		return crypto.ErrInvalidSignature
 	}
 	return nil
@@ -104,8 +110,12 @@ func NewBLSFactory(priv *bls.PrivateKey) *BLSFactory {
 	return &BLSFactory{priv}
 }
 
-func (b *BLSFactory) Sign(msg []byte) (chain.Auth, error) {
-	return &BLS{Signer: bls.PublicFromPrivateKey(b.priv), Signature: bls.Sign(msg, b.priv)}, nil
+func (b *BLSFactory) Sign(tx *chain.Transaction) (chain.Auth, error) {
+	digest, err := tx.Digest()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get digest: %w", err)
+	}
+	return &BLS{Signer: bls.PublicFromPrivateKey(b.priv), Signature: bls.Sign(digest, b.priv)}, nil
 }
 
 func (*BLSFactory) MaxUnits() (uint64, uint64) {
