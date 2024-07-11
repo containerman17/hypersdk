@@ -47,7 +47,7 @@ func TestEip712(t *testing.T) {
 	signedAuthEIP712, ok := signedAuth.(*EIP712)
 	require.True(t, ok)
 
-	expectedSig := "0x40c51a6bab4c4e96763df1382dbef477e424fd1857268ee4409af5a01efbd17407908de21e8e4c6d4bb9ae35f0c9e08b660ccf30587c009f2d659546fca0942a1b"
+	expectedSig := "0xd72250dd84c68a111707e237b166f8d2f847d6c3d49bece4d2ca56c7688628ad5f200d0a75cd9a68d09abb8a40eb7df1c4992f65d7cdd5a1e79dacc1baa7171a1b"
 	require.Equal(t, expectedSig, hexutil.Encode(signedAuthEIP712.Signature))
 }
 

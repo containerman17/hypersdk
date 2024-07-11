@@ -16,6 +16,7 @@ import (
 	"github.com/ava-labs/hypersdk/codec"
 	"github.com/ava-labs/hypersdk/crypto"
 	"github.com/ava-labs/hypersdk/examples/morpheusvm/consts"
+	mconsts "github.com/ava-labs/hypersdk/examples/morpheusvm/consts"
 	"github.com/ava-labs/hypersdk/examples/morpheusvm/eip712"
 	"github.com/ava-labs/hypersdk/utils"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -94,7 +95,7 @@ func (d *EIP712) Verify(_ context.Context, tx *chain.Transaction) error {
 		Domain:      domain,
 		Message: map[string]interface{}{
 			"expiration": timestampToIsoString(tx.Base.Timestamp),
-			"maxFee":     fmt.Sprintf("%d", tx.Base.MaxFee),
+			"maxFee":     utils.FormatBalance(tx.Base.MaxFee, mconsts.Decimals),
 			"action":     actionName,
 			"params":     map[string]interface{}{}, //will be filled later
 		},
@@ -198,15 +199,15 @@ func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
 		Salt:              "",
 	}
 
-	actionName := reflect.TypeOf(action).Name()
+	actionName := reflect.TypeOf(action).Elem().Name()
 
 	typedData := eip712.TypedData{
 		Types:       types,
 		PrimaryType: "Transaction",
 		Domain:      domain,
 		Message: map[string]interface{}{
-			"expiration": timestampToIsoString(tx.Base.Timestamp),
-			"maxFee":     fmt.Sprintf("%d", tx.Base.MaxFee),
+			"expiration": timestampToIsoString(tx.Base.Timestamp / 1000),
+			"maxFee":     utils.FormatBalance(tx.Base.MaxFee, mconsts.Decimals),
 			"action":     actionName,
 			"params":     map[string]interface{}{}, //will be filled later
 		},
@@ -229,6 +230,13 @@ func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash typed data: %v", err)
 	}
+
+	typedDataJSON, err := json.Marshal(typedData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal typed data to JSON: %w", err)
+	}
+
+	fmt.Println(string(typedDataJSON))
 
 	signature, err := eip712.SignHashEth(d.priv, hash)
 	if err != nil {

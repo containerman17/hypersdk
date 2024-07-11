@@ -86,6 +86,10 @@ async function startTest() {
 
 }
 
+const toGoStyleIsoString = (date) => {
+    return date.toISOString().slice(0, -5) + 'Z'
+}
+
 async function calculateSignatureForTests() {
     const msgParams = {
         domain: {
@@ -95,9 +99,9 @@ async function calculateSignatureForTests() {
             version: '1',
         },
         message: {
-            expiration: new Date(1717111222333).toISOString(),
+            expiration: toGoStyleIsoString(new Date(1717111222333)),
             maxFee: '10.000000000',
-            action: "transfer",
+            action: "Transfer",
             params:
             {
                 to: 'morpheus1qypqxpq9qcrsszg2pvxq6rs0zqqqqqqqqqqqqqqqqqqqqqqqqqqqql22w7h',
@@ -131,6 +135,8 @@ async function calculateSignatureForTests() {
         data: msgParams,
         version: sigUtil.SignTypedDataVersion.V4,
     })
+
+    console.log(JSON.stringify(msgParams))
 
     console.log(`Signature: ${sig}`)
 
