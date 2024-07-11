@@ -186,6 +186,7 @@ func TestEIP712(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0xba81cb7af061d4e2ef7f698f9e78eacaf7cab8e965bec85dae1caee4655d9e3425fc832c30544a20d46c3d856928fb458a5e0d1785f8d6e07ed92285d621e4771b", "0x"+hex.EncodeToString(signature))
 
-	recoveredAddr := crypto.PubkeyToAddress(privateKey.PublicKey)
+	recoveredAddr, err := RecoverAddressEth(hash, signature)
+	require.NoError(t, err)
 	require.True(t, strings.EqualFold("0x96216849c49358b10257cb55b28ea603c874b05e", recoveredAddr.Hex()))
 }

@@ -56,25 +56,75 @@ func (*EIP712) ValidRange(chain.Rules) (int64, int64) {
 }
 
 func (d *EIP712) Verify(_ context.Context, tx *chain.Transaction) error {
-	msg, err := tx.Digest()
-	if err != nil {
-		return fmt.Errorf("failed to get digest: %w", err)
+	if len(tx.Actions) != 1 {
+		return fmt.Errorf("only one action is allowed with EIP712 auth")
 	}
 
-	fullMessage := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(msg), msg)
-	hash := ethCrypto.Keccak256Hash([]byte(fullMessage))
+	action := tx.Actions[0]
 
-	// Transform V from 27/28 to 0/1
-	signature := make([]byte, len(d.Signature))
-	copy(signature, d.Signature)
-	signature[ethCrypto.RecoveryIDOffset] -= 27
+	types := map[string][]eip712.Type{
+		"EIP712Domain": {
+			{Name: "name", Type: "string"},
+			{Name: "version", Type: "string"},
+			{Name: "chainId", Type: "uint256"},
+			{Name: "verifyingContract", Type: "address"},
+		},
+		"Transaction": {
+			{Name: "expiration", Type: "string"},
+			{Name: "maxFee", Type: "string"},
+			{Name: "action", Type: "string"},
+			{Name: "params", Type: "Params"},
+		},
+		"Params": generateTypeArrayFromStruct(action),
+	}
 
-	sigPublicKey, err := ethCrypto.Ecrecover(hash.Bytes(), signature)
+	domain := eip712.TypedDataDomain{
+		Name:              "HyperSDK",
+		Version:           "1",
+		ChainId:           (*math.HexOrDecimal256)(bytes32ToBigInt(tx.Base.ChainID)),
+		VerifyingContract: "0x0000000000000000000000000000000000000000",
+		Salt:              "",
+	}
+
+	actionName := reflect.TypeOf(action).Name()
+
+	typedData := eip712.TypedData{
+		Types:       types,
+		PrimaryType: "Transaction",
+		Domain:      domain,
+		Message: map[string]interface{}{
+			"expiration": timestampToIsoString(tx.Base.Timestamp),
+			"maxFee":     fmt.Sprintf("%d", tx.Base.MaxFee),
+			"action":     actionName,
+			"params":     map[string]interface{}{}, //will be filled later
+		},
+	}
+
+	paramsJSON, err := json.Marshal(action)
+	if err != nil {
+		return fmt.Errorf("failed to marshal action to JSON: %w", err)
+	}
+
+	var paramsMap map[string]interface{}
+	err = json.Unmarshal(paramsJSON, &paramsMap)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal JSON to map: %w", err)
+	}
+
+	typedData.Message["params"] = paramsMap
+
+	hash, _, err := eip712.TypedDataAndHash(typedData)
+	if err != nil {
+		return fmt.Errorf("failed to hash typed data: %v", err)
+	}
+
+	sigPublicKey, err := ethCrypto.Ecrecover(hash, d.Signature)
 	if err != nil {
 		return fmt.Errorf("failed to recover public key: %v", err)
 	}
 
-	if !ethCrypto.VerifySignature(sigPublicKey, hash.Bytes(), signature[:len(signature)-1]) {
+	//FIXME: why do we cut off the last byte?
+	if !ethCrypto.VerifySignature(sigPublicKey, hash, d.Signature[:len(d.Signature)-1]) {
 		return crypto.ErrInvalidSignature
 	}
 
@@ -144,7 +194,7 @@ func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
 		Name:              "HyperSDK",
 		Version:           "1",
 		ChainId:           (*math.HexOrDecimal256)(bytes32ToBigInt(tx.Base.ChainID)),
-		VerifyingContract: "0x",
+		VerifyingContract: "0x0000000000000000000000000000000000000000",
 		Salt:              "",
 	}
 
@@ -152,7 +202,7 @@ func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
 
 	typedData := eip712.TypedData{
 		Types:       types,
-		PrimaryType: "Mail",
+		PrimaryType: "Transaction",
 		Domain:      domain,
 		Message: map[string]interface{}{
 			"expiration": timestampToIsoString(tx.Base.Timestamp),
@@ -203,17 +253,23 @@ func bytes32ToBigInt(bytes32 [32]byte) *big.Int {
 func timestampToIsoString(timestamp int64) string {
 	return time.Unix(timestamp, 0).Format(time.RFC3339)
 }
-
 func generateTypeArrayFromStruct(v interface{}) []eip712.Type {
-	val := reflect.ValueOf(v)
-	typ := reflect.TypeOf(v)
+	val := reflect.Indirect(reflect.ValueOf(v))
+	typ := val.Type()
+
+	if typ.Kind() != reflect.Struct {
+		panic("generateTypeArrayFromStruct expects a struct")
+	}
 
 	var result []eip712.Type
-	for i := 0; i < val.NumField(); i++ {
+	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		fieldName := field.Tag.Get("json")
+		if fieldName == "" {
+			fieldName = field.Name
+		}
 
-		fieldType := "string" //FIXME: infer from field.Type.Name()
+		fieldType := "string" // field.Type.Kind().String()
 
 		result = append(result, eip712.Type{
 			Name: fieldName,

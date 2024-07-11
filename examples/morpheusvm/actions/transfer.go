@@ -5,6 +5,7 @@ package actions
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/ava-labs/avalanchego/ids"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/ava-labs/hypersdk/consts"
 	"github.com/ava-labs/hypersdk/examples/morpheusvm/storage"
 	"github.com/ava-labs/hypersdk/state"
+	"github.com/ava-labs/hypersdk/utils"
 
 	mconsts "github.com/ava-labs/hypersdk/examples/morpheusvm/consts"
 )
@@ -22,9 +24,21 @@ var _ chain.Action = (*Transfer)(nil)
 type Transfer struct {
 	// To is the recipient of the [Value].
 	To codec.Address `json:"to"`
-
 	// Amount are transferred to [To].
 	Value uint64 `json:"value"`
+}
+
+func (t Transfer) MarshalJSON() ([]byte, error) {
+	type Alias Transfer
+	return json.Marshal(&struct {
+		To    string `json:"to"`
+		Value string `json:"value"`
+		*Alias
+	}{
+		To:    codec.MustAddressBech32(mconsts.HRP, t.To),
+		Value: utils.FormatBalance(t.Value, mconsts.Decimals),
+		Alias: (*Alias)(&t),
+	})
 }
 
 func (*Transfer) GetTypeID() uint8 {

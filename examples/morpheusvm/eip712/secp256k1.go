@@ -26,11 +26,11 @@ func SignHashEth(privateKey *ecdsa.PrivateKey, hash []byte) ([]byte, error) {
 	return signature, nil
 }
 
-func RecoverAddressEth(hash common.Hash, signature []byte) (common.Address, error) {
+func RecoverAddressEth(hash []byte, signature []byte) (common.Address, error) {
 	// Transform V from 27/28 to 0/1
 	signature[crypto.RecoveryIDOffset] -= 27
 
-	sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signature)
+	sigPublicKey, err := crypto.Ecrecover(hash, signature)
 	if err != nil {
 		return common.Address{}, fmt.Errorf("failed to recover public key: %v", err)
 	}

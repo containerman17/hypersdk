@@ -169,9 +169,9 @@
             const msgParams = JSON.stringify({
                 domain: {
                     // This defines the network, in this case, Mainnet.
-                    chainId: chainId,
+                    chainId: 43114,
                     // Give a user-friendly name to the specific contract you're signing for.
-                    name: "MySubnet",
+                    name: "HyperSDK",
                     // Add a verifying contract to make sure you're establishing contracts with the proper entity.
                     verifyingContract: "0x",
                     // This identifies the latest version.
@@ -182,9 +182,9 @@
                 // anything you want. There are no required fields. Be as explicit as possible when building out
                 // the message schema.
                 message: {
-                    expiration: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-                    maxFee: '123.02',
-                    action: "Transfer",
+                    expiration: new Date(1717111222333).toISOString(),
+                    maxFee: '100000',
+                    action: "transfer",
                     params:
                     {
                         to: '0xc0dec0dec0dec0dec0dec0dec0dec0dec0dec0de',

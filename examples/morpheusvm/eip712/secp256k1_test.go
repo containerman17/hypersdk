@@ -37,7 +37,7 @@ func TestEthSigs(t *testing.T) {
 
 	// Recover address
 	fullMessage := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data)
-	hash := crypto.Keccak256Hash([]byte(fullMessage))
+	hash := crypto.Keccak256Hash([]byte(fullMessage)).Bytes()
 	recoveredAddress, err := RecoverAddressEth(hash, signature)
 	if err != nil {
 		t.Fatalf("Failed to recover address: %v", err)
@@ -52,11 +52,11 @@ func TestEthSigs(t *testing.T) {
 
 	// Verify the signature
 	signatureNoRecoverID := signature[:len(signature)-1] // remove recovery id
-	sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signature)
+	sigPublicKey, err := crypto.Ecrecover(hash, signature)
 	if err != nil {
 		t.Fatalf("Failed to recover public key: %v", err)
 	}
-	verified := crypto.VerifySignature(sigPublicKey, hash.Bytes(), signatureNoRecoverID)
+	verified := crypto.VerifySignature(sigPublicKey, hash, signatureNoRecoverID)
 	if !verified {
 		t.Errorf("Failed to verify signature")
 	}
