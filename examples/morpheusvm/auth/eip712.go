@@ -61,14 +61,14 @@ func (d *EIP712) Verify(_ context.Context, tx *chain.Transaction) error {
 	if err != nil {
 		return err
 	}
+	signature := make([]byte, len(d.Signature))
+	copy(signature, d.Signature)
 
-	sigPublicKey, err := ethCrypto.Ecrecover(hash, d.Signature)
-	if err != nil {
-		return fmt.Errorf("failed to recover public key: %v", err)
-	}
+	// Transform V from 27/28 to 0/1
+	signature[ethCrypto.RecoveryIDOffset] -= 27
 
 	//FIXME: why do we cut off the last byte?
-	if !ethCrypto.VerifySignature(sigPublicKey, hash, d.Signature[:len(d.Signature)-1]) {
+	if !ethCrypto.VerifySignature(d.Signer, hash, signature[:64]) {
 		return crypto.ErrInvalidSignature
 	}
 

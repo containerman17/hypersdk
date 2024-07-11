@@ -54,6 +54,9 @@ func TestEip712(t *testing.T) {
 
 	expectedSig := "0xd72250dd84c68a111707e237b166f8d2f847d6c3d49bece4d2ca56c7688628ad5f200d0a75cd9a68d09abb8a40eb7df1c4992f65d7cdd5a1e79dacc1baa7171a1b"
 	require.Equal(t, expectedSig, hexutil.Encode(signedAuthEIP712.Signature))
+
+	err = signedAuthEIP712.Verify(nil, signedTx)
+	require.NoError(t, err)
 }
 
 // Convert [32]byte to big.Int
