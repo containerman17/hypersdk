@@ -1,5 +1,6 @@
 import MetaMaskSDK from '@metamask/sdk'
 
+
 const sdk = new MetaMaskSDK({
     dappMetadata: {
         name: "Pure JS example",
@@ -79,7 +80,7 @@ class Transaction extends Action {
     }
 }
 
-const CHAIN_ID = "kF3cvAzriLGjFjCTzVPeJcQqoW8kMYX1PLisuZdQ5R4URPxE2"
+const CHAIN_ID = "2c7iUW3kCDwRA9ZFd5bjZZc8iDy68uAsFSBahjqSZGttiTDSNH"
 
 async function getBalance(address: string): Promise<bigint> {
     const response = await fetch(`http://127.0.0.1:9650/ext/bc/${CHAIN_ID}/morpheusapi`, {
@@ -98,6 +99,22 @@ async function getBalance(address: string): Promise<bigint> {
     const json = await response.json();
     return BigInt(json.result.amount);
 }
+
+import { base58 } from '@scure/base';
+import type { BytesCoder } from '@scure/base';
+import { sha256 } from '@noble/hashes/sha256';
+import { concatBytes } from '@noble/hashes/utils';
+
+export const base58check: BytesCoder = {
+    encode(data) {
+        return base58.encode(concatBytes(data, sha256(data).subarray(-4)));
+    },
+    decode(string) {
+        return base58.decode(string).subarray(0, -4);
+    },
+};
+
+export { base58 } from '@scure/base';
 
 
 function log(message: string, isError: boolean = false) {
@@ -152,11 +169,12 @@ async function startTests() {
         log("Balance: " + (await getBalance(addr1)).toString(), false)
 
         log("Testing packing of base binary...")
-        const expectedString = "0000018fcbcdeef0622fc5a40deee96bfb1f1ccfc7ac73668d7598aa9df3796fd6681dbb21bb465a00000002540be400"
+        const expectedString = "0000018fcbcdeef0d36e467c73e2840140cc41b3d72f8a5a7446b2399c39b9c74d4cf077d250902400000002540be400"
         // const expectedString = "0000018fcbcdeef0"
+        console.log('base58check.decode(CHAIN_ID)', base58check.decode(CHAIN_ID))
         const action = new EmptyAction({
             _timestamp: 1717111222000n,
-            _chainId: 1n, // cb decode kF3cvAzriLGjFjCTzVPeJcQqoW8kMYX1PLisuZdQ5R4URPxE2
+            _chainId: BigInt(`0x${base58check.decode(CHAIN_ID).reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')}`),
             _maxFee: 10n * (10n ** 9n),
         })
         log("Expected: " + expectedString, false)

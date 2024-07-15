@@ -14,7 +14,9 @@
   },
   "dependencies": {
     "@metamask/sdk": "^0.26.5",
+    "@noble/hashes": "^1.4.0",
     "@nuklai/hyperchain-sdk": "^0.2.0",
+    "@scure/base": "^1.1.7",
     "crypto-browserify": "^3.12.0"
   },
   "browser": {

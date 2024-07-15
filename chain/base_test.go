@@ -11,7 +11,7 @@ import (
 )
 
 func TestBase(t *testing.T) {
-	chainId, err := ids.FromString("kF3cvAzriLGjFjCTzVPeJcQqoW8kMYX1PLisuZdQ5R4URPxE2")
+	chainId, err := ids.FromString("2c7iUW3kCDwRA9ZFd5bjZZc8iDy68uAsFSBahjqSZGttiTDSNH")
 	require.NoError(t, err)
 
 	base := &Base{Timestamp: 1717111222000, ChainID: chainId, MaxFee: uint64(10 * math.Pow(10, 9))}
@@ -19,5 +19,5 @@ func TestBase(t *testing.T) {
 	packer := codec.NewWriter(0, 1000000)
 	base.Marshal(packer)
 
-	require.Equal(t, "0000018fcbcdeef0622fc5a40deee96bfb1f1ccfc7ac73668d7598aa9df3796fd6681dbb21bb465a00000002540be400", hex.EncodeToString(packer.Bytes()))
+	require.Equal(t, "0000018fcbcdeef0d36e467c73e2840140cc41b3d72f8a5a7446b2399c39b9c74d4cf077d250902400000002540be400", hex.EncodeToString(packer.Bytes()))
 }
