@@ -6,26 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest"
   },
   "devDependencies": {
     "typescript": "^5.2.2",
-    "vite": "^5.3.1"
+    "vite": "^5.3.1",
+    "vitest": "^2.0.2"
   },
   "dependencies": {
     "@metamask/sdk": "^0.26.5",
     "@noble/hashes": "^1.4.0",
-    "@nuklai/hyperchain-sdk": "^0.2.0",
-    "@scure/base": "^1.1.7",
-    "crypto-browserify": "^3.12.0"
-  },
-  "browser": {
-    "crypto": "crypto-browserify",
-    "stream": "stream-browserify",
-    "buffer": "buffer",
-    "zlib": "browserify-zlib",
-    "util": "util",
-    "process": "process",
-    "events": "events"
+    "@scure/base": "^1.1.7"
   }
 }
