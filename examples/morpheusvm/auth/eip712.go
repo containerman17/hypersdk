@@ -112,6 +112,20 @@ func NewEIP712Factory(priv *ecdsa.PrivateKey) *EIP712Factory {
 }
 
 func eip712hashTx(tx *chain.Transaction) ([]byte, error) {
+	typedData, err := getTypedData(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	hash, _, err := eip712.TypedDataAndHash(*typedData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash typed data: %v", err)
+	}
+
+	return hash, nil
+}
+
+func getTypedData(tx *chain.Transaction) (*eip712.TypedData, error) {
 	if len(tx.Actions) != 1 {
 		return nil, fmt.Errorf("only one action is allowed with EIP712 auth")
 	}
@@ -167,12 +181,13 @@ func eip712hashTx(tx *chain.Transaction) ([]byte, error) {
 
 	typedData.Message["params"] = paramsMap
 
-	hash, _, err := eip712.TypedDataAndHash(typedData)
+	typedDataJSON, err := json.Marshal(typedData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash typed data: %v", err)
+		return nil, fmt.Errorf("failed to marshal typed data to JSON: %w", err)
 	}
+	fmt.Printf("typedData: %+v\n", string(typedDataJSON))
 
-	return hash, nil
+	return &typedData, nil
 }
 
 func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {

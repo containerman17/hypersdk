@@ -1,4 +1,6 @@
+import { bytesToHex } from "@noble/hashes/utils";
 import { AbstractAction } from "../actions/AbstractAction";
+import { AuthIface } from "../auth/AuthIface";
 import { MiniPacker } from "../utils/MiniPacker"
 
 export class Transaction {
@@ -36,5 +38,22 @@ export class Transaction {
             packer.packFixedBytes(action.toBytes())//pack action bytes
         }
         return packer.bytes()
+    }
+
+    private _signature: Uint8Array = new Uint8Array(0)
+    private _signer: Uint8Array = new Uint8Array(0)
+    private _authIDByte: number = 0
+
+    get signature(): Uint8Array {
+        return this._signature
+    }
+    get signedBytes(): Uint8Array {
+        return new Uint8Array([...this.digest(), this._authIDByte, ... this._signer, ...this._signature])
+    }
+
+    public async sign(provider: AuthIface) {
+        this._signature = await provider.sign(this)
+        this._signer = provider.getSigner()
+        this._authIDByte = provider.getAuthIDByte()
     }
 }

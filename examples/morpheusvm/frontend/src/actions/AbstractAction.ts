@@ -5,6 +5,10 @@ export abstract class AbstractAction {
     static actionId(): Byte {
         throw new Error("Method has to be overridden")
     }
+
+    static actionName(): string {
+        throw new Error("Method has to be overridden")
+    }
 }
 
 export class Byte {
