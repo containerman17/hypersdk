@@ -1,13 +1,26 @@
-import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
+import { hexToBytes } from "@noble/hashes/utils";
 import { AbstractAction } from "../actions/AbstractAction";
 import { Transaction } from "../chain/Transaction";
 import { AuthIface } from "./AuthIface";
-import { signTypedData, SignTypedDataVersion } from "@metamask/eth-sig-util";
-import * as secp from '@noble/secp256k1';
+import { signTypedData, SignTypedDataVersion, TypedDataUtils } from "@metamask/eth-sig-util";
 import { safeChainId } from "../chain/Id";
+import {
+    ecrecover,
+    fromRpcSig,
+} from '@ethereumjs/util';
+import { SigningKey } from "ethers";
 
 export const toGoStyleIsoString = (date: Date) => {
     return date.toISOString().slice(0, -5) + 'Z'
+}
+
+export function recoverPublicKey(
+    messageHash: Buffer,
+    signature: string,
+): Uint8Array {
+    const sigParams = fromRpcSig(signature);
+    const uncompressed = ecrecover(messageHash, sigParams.v, sigParams.r, sigParams.s);
+    return hexToBytes(SigningKey.computePublicKey(uncompressed, true).slice(2));
 }
 
 export const formatBalance = (balance: bigint, decimals: number = 9): string => {
@@ -67,9 +80,12 @@ export class EIP712PrivateKeySigner implements AuthIface {
         return msgParams
     }
 
+    protected _signer: Uint8Array | undefined
     async getSigner() {
-        const bytes = secp.getPublicKey(this.privateKeyHex, true)
-        return bytes
+        if (!this._signer) {
+            throw new Error("Sign before getting signer")
+        }
+        return this._signer
     }
 
     getAuthIDByte() {
@@ -83,6 +99,9 @@ export class EIP712PrivateKeySigner implements AuthIface {
             data: msgParams,
             version: SignTypedDataVersion.V4,
         })
+        const messageHash = TypedDataUtils.eip712Hash(msgParams, SignTypedDataVersion.V4)
+        const publicKey = recoverPublicKey(messageHash, sigHex);
+        this._signer = publicKey
         return hexToBytes(sigHex.slice(2))
     }
 }

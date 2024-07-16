@@ -1,11 +1,14 @@
+
+
+
 import MetaMaskSDK from '@metamask/sdk'
-import { cb58 } from './utils/cb58';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { bytesToHex } from '@noble/hashes/utils';
 import { EIP712BrowserSigner } from './auth/EIP712Browser';
 import { TransferAction } from './actions/TransferAction';
 import { idStringToBigInt } from './chain/Id';
 import { Transaction } from "./chain/Transaction"
 import { safeChainId } from "./chain/Id"
+
 const metamaskSDK = new MetaMaskSDK({
     dappMetadata: {
         name: "Pure JS example",
@@ -111,9 +114,6 @@ async function startTests() {
             10n * (10n ** 9n),
             [action],
         )
-
-        const pubKey = await txSigner.getSigner()
-        log(`Got a signer ${bytesToHex(pubKey)}, ${pubKey.length} bytes`)
 
         //check digest just to make sure
         const expectedDigest = "0000018fcbcdeef0d36e467c73e2840140cc41b3d72f8a5a7446b2399c39b9c74d4cf077d250902400000002540be400010000c4cb545f748a28770042f893784ce85b107389004d6a0e0d6d7518eeae1292d90000001ca35f0e00";
