@@ -18,7 +18,7 @@ export const formatBalance = (balance: bigint, decimals: number = 9): string => 
     return `${quotient}.${paddedRemainder}`;
 }
 
-export class EIP712Signer implements AuthIface {
+export class EIP712PrivateKeySigner implements AuthIface {
     constructor(private readonly privateKeyHex: string) {
 
     }
@@ -33,7 +33,7 @@ export class EIP712Signer implements AuthIface {
 
         const msgParams = {
             domain: {
-                chainId: tx.chainId as unknown as number,
+                chainId: `0x${tx.chainId.toString(16)}` as unknown as number,//I love typescipt
                 name: 'HyperSDK',
                 verifyingContract: '0x0000000000000000000000000000000000000000',
                 version: '1',
@@ -66,7 +66,7 @@ export class EIP712Signer implements AuthIface {
         return msgParams
     }
 
-    getSigner() {
+    async getSigner() {
         return secp.getPublicKey(this.privateKeyHex, false)
     }
 

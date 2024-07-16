@@ -2,7 +2,7 @@ import { expect, test } from "vitest"
 import { Transaction } from "../chain/Transaction"
 import { idStringToBigInt } from "../chain/Id"
 import { TransferAction } from "../actions/TransferAction"
-import { EIP712Signer } from "./EIP712PrivateKey"
+import { EIP712PrivateKeySigner } from "./EIP712PrivateKey"
 import { bytesToHex } from "@noble/hashes/utils"
 
 test('Tx with a transfer action signature', async () => {
@@ -27,7 +27,7 @@ test('Tx with a transfer action signature', async () => {
         "0000018fcbcdeef0d36e467c73e2840140cc41b3d72f8a5a7446b2399c39b9c74d4cf077d250902400000002540be400010000c4cb545f748a28770042f893784ce85b107389004d6a0e0d6d7518eeae1292d90000001ca35f0e00"
     )
 
-    const signer = new EIP712Signer("fad9c8855b740a0b7ed4c221dbad0f33a83a49cad6b3fe8d5817ac83d38b6a19")
+    const signer = new EIP712PrivateKeySigner("fad9c8855b740a0b7ed4c221dbad0f33a83a49cad6b3fe8d5817ac83d38b6a19")
     await tx.sign(signer)
 
     expect(

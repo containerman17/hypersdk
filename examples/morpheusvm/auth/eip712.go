@@ -181,12 +181,6 @@ func getTypedData(tx *chain.Transaction) (*eip712.TypedData, error) {
 
 	typedData.Message["params"] = paramsMap
 
-	typedDataJSON, err := json.Marshal(typedData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal typed data to JSON: %w", err)
-	}
-	fmt.Printf("typedData: %+v\n", string(typedDataJSON))
-
 	return &typedData, nil
 }
 

@@ -53,7 +53,7 @@ export class Transaction {
 
     public async sign(provider: AuthIface) {
         this._signature = await provider.sign(this)
-        this._signer = provider.getSigner()
+        this._signer = await provider.getSigner()
         this._authIDByte = provider.getAuthIDByte()
     }
 }
