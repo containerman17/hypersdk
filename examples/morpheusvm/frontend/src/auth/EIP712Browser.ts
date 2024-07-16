@@ -13,18 +13,23 @@ export class EIP712BrowserSigner extends EIP712PrivateKeySigner {
         super("")
     }
 
+    private _signerCache: Record<string, Uint8Array> = {}
     async getSigner() {
         const selectedAddress = ((await this.provider.request({ "method": "eth_accounts" })) as string[])[0]
-        const pubKeyBase64 = await this.provider.request({
-            "method": "eth_getEncryptionPublicKey",
-            "params": [
-                selectedAddress
-            ]
-        });
-        if (!pubKeyBase64) {
-            throw new Error("Failed to get encryption public key")
+        if (!this._signerCache[selectedAddress]) {
+            const pubKeyBase64 = await this.provider.request({
+                "method": "eth_getEncryptionPublicKey",
+                "params": [
+                    selectedAddress
+                ]
+            });
+            if (!pubKeyBase64) {
+                throw new Error("Failed to get encryption public key")
+            }
+            this._signerCache[selectedAddress] = base64.decode(pubKeyBase64 as string)
         }
-        return base64.decode(pubKeyBase64 as string)
+        console.debug(this._signerCache)
+        return this._signerCache[selectedAddress]
     }
 
     getAuthIDByte() {
@@ -35,7 +40,7 @@ export class EIP712BrowserSigner extends EIP712PrivateKeySigner {
         const msgParams = this._getMsgParams(tx)
         const selectedAddress = ((await this.provider.request({ "method": "eth_accounts" })) as string[])[0]
 
-        return new Promise((resolve, reject) => {
+        const sigHex: string = await new Promise((resolve, reject) => {
             this.provider // Or window.ethereum if you don't support EIP-6963.
                 .sendAsync(
                     {
@@ -57,5 +62,6 @@ export class EIP712BrowserSigner extends EIP712PrivateKeySigner {
                 );
         })
 
+        return hexToBytes(sigHex.slice(2))
     }
 }

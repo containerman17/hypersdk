@@ -1,11 +1,11 @@
 import MetaMaskSDK from '@metamask/sdk'
 import { cb58 } from './utils/cb58';
-import { bytesToHex } from '@noble/hashes/utils';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { EIP712BrowserSigner } from './auth/EIP712Browser';
 import { TransferAction } from './actions/TransferAction';
 import { idStringToBigInt } from './chain/Id';
 import { Transaction } from "./chain/Transaction"
-
+import { safeChainId } from "./chain/Id"
 const metamaskSDK = new MetaMaskSDK({
     dappMetadata: {
         name: "Pure JS example",
@@ -52,13 +52,9 @@ function log(message: string, isError: boolean = false) {
     document.getElementById('log')?.appendChild(div);
 }
 
-const METAMASK_MAX_SAFE_CHAIN_ID = 4503599627370476n;
-
 
 const CHAIN_ID = "2c7iUW3kCDwRA9ZFd5bjZZc8iDy68uAsFSBahjqSZGttiTDSNH"
-const chainIdBytes = cb58.decode(CHAIN_ID)
-const chainIdBigint = BigInt('0x' + bytesToHex(chainIdBytes))
-const safeChainId = chainIdBigint % METAMASK_MAX_SAFE_CHAIN_ID
+
 
 async function startTests() {
     try {
@@ -70,6 +66,36 @@ async function startTests() {
         if (!provider) {
             throw new Error("No provider")
         }
+        log('Got provider')
+
+        const chainId = idStringToBigInt("2c7iUW3kCDwRA9ZFd5bjZZc8iDy68uAsFSBahjqSZGttiTDSNH")
+        const chainIdSafe = safeChainId(chainId)
+
+        //add chain
+        await provider.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+                chainId: `0x${chainIdSafe.toString(16)}`,
+                rpcUrls: ["https://chain-id-echo.glitch.me/" + chainIdSafe],
+                chainName: "Matic Mainnet",
+                nativeCurrency: {
+                    name: "MATIC",
+                    symbol: "MATIC",
+                    decimals: 18
+                },
+                blockExplorerUrls: ["https://polygonscan.com/"]
+            }]
+        });
+
+        log("Chain added")
+
+        await provider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${chainIdSafe.toString(16)}` }],
+        });
+
+        log("Switched to the new chain")
+
 
         const txSigner = new EIP712BrowserSigner(provider)
 
@@ -78,7 +104,6 @@ async function startTests() {
             123n * (10n ** 9n)
         )
 
-        const chainId = idStringToBigInt("2c7iUW3kCDwRA9ZFd5bjZZc8iDy68uAsFSBahjqSZGttiTDSNH")
 
         const tx = new Transaction(
             1717111222000n,
@@ -86,6 +111,9 @@ async function startTests() {
             10n * (10n ** 9n),
             [action],
         )
+
+        const pubKey = await txSigner.getSigner()
+        log(`Got a signer ${bytesToHex(pubKey)}, ${pubKey.length} bytes`)
 
         //check digest just to make sure
         const expectedDigest = "0000018fcbcdeef0d36e467c73e2840140cc41b3d72f8a5a7446b2399c39b9c74d4cf077d250902400000002540be400010000c4cb545f748a28770042f893784ce85b107389004d6a0e0d6d7518eeae1292d90000001ca35f0e00";
@@ -97,14 +125,14 @@ async function startTests() {
 
         await tx.sign(txSigner);
 
-        const expectedSignature = "d67f92c8889a190991db0f0830cb19efeb12e058a7d099a15384eafcd9859b054fda4ce67cb49f8ec27635dd2f00050ec0c09ada185a32d0ff914e3ed930e2d41c";
+        const expectedSignature = "c91e809201fdada92235637d3a570a4dac980a44322ee0b9b5e14b11c4cdc9cf064bc3e0f9f73dd7ec1051f50fc9298148151a7d99bf99ad88d3c4abab7e7dc41c";
         const actualSignature = bytesToHex(await txSigner.sign(tx));
         if (actualSignature !== expectedSignature) {
             throw new Error(`Signature mismatch. Expected: ${expectedSignature}, Actual: ${actualSignature}`);
         }
         log("Signature check successful");
 
-        const expectedSignedBytes = "0000018fcbcdeef0d36e467c73e2840140cc41b3d72f8a5a7446b2399c39b9c74d4cf077d250902400000002540be400010000c4cb545f748a28770042f893784ce85b107389004d6a0e0d6d7518eeae1292d90000001ca35f0e0004049a7df67f79246283fdc93af76d4f8cdd62c4886e8cd870944e817dd0b97934fdd7719d0810951e03418205868a5c1b40b192451367f28e0088dd75e15de40c05d67f92c8889a190991db0f0830cb19efeb12e058a7d099a15384eafcd9859b054fda4ce67cb49f8ec27635dd2f00050ec0c09ada185a32d0ff914e3ed930e2d41c";
+        const expectedSignedBytes = "0000018fcbcdeef0d36e467c73e2840140cc41b3d72f8a5a7446b2399c39b9c74d4cf077d250902400000002540be400010000c4cb545f748a28770042f893784ce85b107389004d6a0e0d6d7518eeae1292d90000001ca35f0e0004039a7df67f79246283fdc93af76d4f8cdd62c4886e8cd870944e817dd0b97934fdc91e809201fdada92235637d3a570a4dac980a44322ee0b9b5e14b11c4cdc9cf064bc3e0f9f73dd7ec1051f50fc9298148151a7d99bf99ad88d3c4abab7e7dc41c";
         const actualSignedBytes = bytesToHex(tx.signedBytes!);
         if (actualSignedBytes !== expectedSignedBytes) {
             throw new Error(`Signed bytes mismatch. Expected: ${expectedSignedBytes}, Actual: ${actualSignedBytes}`);

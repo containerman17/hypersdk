@@ -1,9 +1,10 @@
-import { hexToBytes } from "@noble/hashes/utils";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 import { AbstractAction } from "../actions/AbstractAction";
 import { Transaction } from "../chain/Transaction";
 import { AuthIface } from "./AuthIface";
 import { signTypedData, SignTypedDataVersion } from "@metamask/eth-sig-util";
 import * as secp from '@noble/secp256k1';
+import { safeChainId } from "../chain/Id";
 
 export const toGoStyleIsoString = (date: Date) => {
     return date.toISOString().slice(0, -5) + 'Z'
@@ -33,7 +34,7 @@ export class EIP712PrivateKeySigner implements AuthIface {
 
         const msgParams = {
             domain: {
-                chainId: `0x${tx.chainId.toString(16)}` as unknown as number,//I love typescipt
+                chainId: `0x${safeChainId(tx.chainId).toString(16)}` as unknown as number,//I love typescipt
                 name: 'HyperSDK',
                 verifyingContract: '0x0000000000000000000000000000000000000000',
                 version: '1',
@@ -67,7 +68,8 @@ export class EIP712PrivateKeySigner implements AuthIface {
     }
 
     async getSigner() {
-        return secp.getPublicKey(this.privateKeyHex, false)
+        const bytes = secp.getPublicKey(this.privateKeyHex, true)
+        return bytes
     }
 
     getAuthIDByte() {

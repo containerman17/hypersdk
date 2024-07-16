@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -27,7 +28,7 @@ var _ chain.Auth = (*EIP712)(nil)
 
 const (
 	EIP712ComputeUnits = 10      // can't be batched like ed25519
-	EIP712Size         = 65 + 65 // 65 bytes for public key, 65 for signature
+	EIP712Size         = 33 + 65 // 33 bytes for public key, 65 for signature
 )
 
 type EIP712 struct {
@@ -94,8 +95,8 @@ func (d *EIP712) Marshal(p *codec.Packer) {
 
 func UnmarshalEIP712(p *codec.Packer) (chain.Auth, error) {
 	var d EIP712
-	d.Signer = make([]byte, 65)
-	p.UnpackFixedBytes(65, &d.Signer)
+	d.Signer = make([]byte, 33)
+	p.UnpackFixedBytes(33, &d.Signer)
 	d.Signature = make([]byte, 65)
 	p.UnpackFixedBytes(65, &d.Signature)
 	return &d, p.Err()
@@ -125,6 +126,8 @@ func eip712hashTx(tx *chain.Transaction) ([]byte, error) {
 	return hash, nil
 }
 
+const METAMASK_MAX_SAFE_CHAIN_ID = 4503599627370476
+
 func getTypedData(tx *chain.Transaction) (*eip712.TypedData, error) {
 	if len(tx.Actions) != 1 {
 		return nil, fmt.Errorf("only one action is allowed with EIP712 auth")
@@ -146,10 +149,13 @@ func getTypedData(tx *chain.Transaction) (*eip712.TypedData, error) {
 		"Params": generateTypeArrayFromStruct(tx.Actions[0]),
 	}
 
+	chainId := bytes32ToBigInt(tx.Base.ChainID)
+	safeChainId := chainId.Mod(chainId, big.NewInt(METAMASK_MAX_SAFE_CHAIN_ID))
+
 	domain := eip712.TypedDataDomain{
 		Name:              "HyperSDK",
 		Version:           "1",
-		ChainId:           (*math.HexOrDecimal256)(bytes32ToBigInt(tx.Base.ChainID)),
+		ChainId:           (*math.HexOrDecimal256)(safeChainId),
 		VerifyingContract: "0x0000000000000000000000000000000000000000",
 		Salt:              "",
 	}
@@ -195,7 +201,13 @@ func (d *EIP712Factory) Sign(tx *chain.Transaction) (chain.Auth, error) {
 		return nil, fmt.Errorf("failed to sign message: %v", err)
 	}
 
-	return &EIP712{Signer: ethCrypto.FromECDSAPub(&d.priv.PublicKey), Signature: signature}, nil
+	signerBytes := ethCrypto.CompressPubkey(&d.priv.PublicKey)
+
+	if len(signerBytes) != 33 {
+		return nil, errors.New("signer is not 33 bytes long")
+	}
+
+	return &EIP712{Signer: signerBytes[:], Signature: signature}, nil
 }
 
 func (*EIP712Factory) MaxUnits() (uint64, uint64) {
