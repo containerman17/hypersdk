@@ -51,6 +51,43 @@ async function getBalance(address: string): Promise<bigint> {
     }
 }
 
+import { base64 } from '@scure/base';
+
+async function sendTx(txBytes: Uint8Array): Promise<void> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    const bytesBase64 = base64.encode(txBytes);
+
+    try {
+        const response = await fetch(`http://localhost:9650/ext/bc/morpheusvm/coreapi`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                method: "hypersdk.submitTx",
+                params: { tx: bytesBase64 },
+                id: parseInt(String(Math.random()).slice(2))
+            }),
+            signal: controller.signal
+        });
+
+        const json = await response.json();
+        if (json?.error?.message) {
+            throw new Error(json.error.message)
+        }
+    } catch (error: any) {
+        if (error.name === 'AbortError') {
+            throw new Error('Request timed out after 3 seconds');
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
 
 
 export { base58 } from '@scure/base';
@@ -90,7 +127,7 @@ async function testSignatures() {
             params: [{
                 chainId: `0x${chainIdSafe.toString(16)}`,
                 rpcUrls: ["https://chain-id-echo.glitch.me/" + chainIdSafe],
-                chainName: "Matic Mainnet",
+                chainName: "HyperSDK Custom",
             }]
         });
 
@@ -150,6 +187,11 @@ async function testSignatures() {
 
 async function testTransfer() {
     try {
+        const balance = await getBalance('morpheus1qsqqqqqqqqqqqqqqqqqqp93pdpyufy6ckyp90j64k282vq7gwjc9u7lsetm')
+        log(`Balance: ${balance}`)
+
+
+
         log('Connecting SDK...')
         await metamaskSDK.connect()
         log('SDK connected')
@@ -158,9 +200,65 @@ async function testTransfer() {
         if (!provider) {
             throw new Error("No provider")
         }
+        log('Got provider')
 
-        const balance = await getBalance('morpheus1qsqqqqqqqqqqqqqqqqqqp93pdpyufy6ckyp90j64k282vq7gwjc9u7lsetm')
-        log(`Balance: ${balance}`)
+        const chainId = idStringToBigInt("1CQVviQZwdDXkAGNQ46grNfeyQK8mBJyG685KVQtW5qNpLfUU")
+        const chainIdSafe = safeChainId(chainId)
+
+        //add chain
+        await provider.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+                chainId: `0x${chainIdSafe.toString(16)}`,
+                rpcUrls: ["https://chain-id-echo.glitch.me/" + chainIdSafe],
+                chainName: "HyperSDK Custom",
+            }]
+        });
+
+        log("Chain added")
+
+        await provider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${chainIdSafe.toString(16)}` }],
+        });
+
+        log("Switched to the new chain")
+
+
+        const txSigner = new EIP712BrowserSigner(provider)
+
+        const action = new TransferAction(
+            "morpheus1qrzvk4zlwj9zsacqgtufx7zvapd3quufqpxk5rsdd4633m4wz2fdjk97rwu",
+            123n * (10n ** 9n)
+        )
+
+        const tx = new Transaction(
+            BigInt(Math.floor((new Date().getTime() + 1000 * 60 * 1) / 1000)) * 1000n,
+            chainId,
+            10n * (10n ** 9n),
+            [action],
+        )
+
+        await tx.sign(txSigner);
+
+        await sendTx(tx.signedBytes!)
+        log("Tx sent")
+
+        log("Waiting for balance change...")
+        let changed = false
+        for (let i = 0; i < 10; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const balance2 = await getBalance('morpheus1qsqqqqqqqqqqqqqqqqqqp93pdpyufy6ckyp90j64k282vq7gwjc9u7lsetm');
+            if (balance !== balance2) {
+                log(`Balance changed from ${balance} to ${balance2}`)
+                changed = true
+                break
+            }
+        }
+        if (!changed) {
+            throw new Error("Balance did not change")
+        }
+        log("Test complete")
     } catch (e: any) {
         console.error(e)
         log(e?.message || String(e), true)

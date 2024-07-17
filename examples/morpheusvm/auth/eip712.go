@@ -33,6 +33,8 @@ const (
 	EIP712Size         = 33 + 65 // 33 bytes for public key, 65 for signature
 )
 
+//TODO: there is a potential of saving 13 bytes by transferring signer as address
+
 type EIP712 struct {
 	Signer    []byte `json:"signer"`
 	Signature []byte `json:"signature"`
