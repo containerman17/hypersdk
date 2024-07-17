@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/hypersdk/chain"
 	"github.com/ava-labs/hypersdk/codec"
 	"github.com/ava-labs/hypersdk/crypto"
@@ -22,6 +23,7 @@ import (
 	"github.com/ava-labs/hypersdk/utils"
 	"github.com/ethereum/go-ethereum/common/math"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
+	"golang.org/x/crypto/sha3"
 )
 
 var _ chain.Auth = (*EIP712)(nil)
@@ -215,7 +217,27 @@ func (*EIP712Factory) MaxUnits() (uint64, uint64) {
 }
 
 func NewEIP712Address(publicKey []byte) codec.Address {
-	return codec.CreateAddress(consts.EIP712ID, utils.ToID(publicKey))
+	addrBytes := ETHPublicKeyBytesToAddressBytes(publicKey)
+	paddedAddrBytes := make([]byte, 32)
+	copy(paddedAddrBytes[12:], addrBytes) // Pad with 12 leading zeros
+	return codec.CreateAddress(consts.EIP712ID, ids.ID(paddedAddrBytes))
+}
+
+func ETHPublicKeyBytesToAddressBytes(compressedPubKey []byte) []byte {
+	pubKey, err := ethCrypto.DecompressPubkey(compressedPubKey)
+	if err != nil {
+		panic(fmt.Sprintf("failed to decompress public key: %v", err))
+	}
+
+	var buf []byte
+
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(pubKey.X.Bytes())
+	hash.Write(pubKey.Y.Bytes())
+	buf = hash.Sum(nil)
+	address := buf[12:]
+
+	return address
 }
 
 func bytes32ToBigInt(bytes32 [32]byte) *big.Int {

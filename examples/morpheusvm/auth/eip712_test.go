@@ -80,6 +80,11 @@ func TestEip712(t *testing.T) {
 		"0000018fcbcdeef0d36e467c73e2840140cc41b3d72f8a5a7446b2399c39b9c74d4cf077d250902400000002540be400010000c4cb545f748a28770042f893784ce85b107389004d6a0e0d6d7518eeae1292d90000001ca35f0e0004039a7df67f79246283fdc93af76d4f8cdd62c4886e8cd870944e817dd0b97934fdc91e809201fdada92235637d3a570a4dac980a44322ee0b9b5e14b11c4cdc9cf064bc3e0f9f73dd7ec1051f50fc9298148151a7d99bf99ad88d3c4abab7e7dc41c",
 		hex.EncodeToString(signedTx.Bytes()),
 	)
+
+	signer := signedAuthEIP712.address()
+	ethAddr, err := eip712.EIP712AddrToETHAddr(signer)
+	require.NoError(t, err)
+	require.Equal(t, "0x96216849c49358B10257cb55b28eA603c874b05E", ethAddr)
 }
 
 // Convert [32]byte to big.Int

@@ -20,23 +20,35 @@ const metamaskSDK = new MetaMaskSDK({
 });
 
 
-
 async function getBalance(address: string): Promise<bigint> {
-    const response = await fetch(`http://127.0.0.1:9650/ext/bc/${CHAIN_ID}/morpheusapi`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            jsonrpc: "2.0",
-            method: "morpheusvm.balance",
-            params: { address },
-            id: parseInt(String(Math.random()).slice(2))
-        })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-    const json = await response.json();
-    return BigInt(json.result.amount);
+    try {
+        const response = await fetch(`http://localhost:9650/ext/bc/morpheusvm/morpheusapi`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                method: "morpheusvm.balance",
+                params: { address },
+                id: parseInt(String(Math.random()).slice(2))
+            }),
+            signal: controller.signal
+        });
+
+        const json = await response.json();
+        return BigInt(json.result.amount);
+    } catch (error: any) {
+        if (error.name === 'AbortError') {
+            throw new Error('Request timed out after 3 seconds');
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeoutId);
+    }
 }
 
 
@@ -56,10 +68,8 @@ function log(message: string, isError: boolean = false) {
 }
 
 
-const CHAIN_ID = "2c7iUW3kCDwRA9ZFd5bjZZc8iDy68uAsFSBahjqSZGttiTDSNH"
 
-
-async function startTests() {
+async function testSignatures() {
     try {
         log('Connecting SDK...')
         await metamaskSDK.connect()
@@ -81,12 +91,6 @@ async function startTests() {
                 chainId: `0x${chainIdSafe.toString(16)}`,
                 rpcUrls: ["https://chain-id-echo.glitch.me/" + chainIdSafe],
                 chainName: "Matic Mainnet",
-                nativeCurrency: {
-                    name: "MATIC",
-                    symbol: "MATIC",
-                    decimals: 18
-                },
-                blockExplorerUrls: ["https://polygonscan.com/"]
             }]
         });
 
@@ -144,4 +148,24 @@ async function startTests() {
     }
 }
 
-startTests()
+async function testTransfer() {
+    try {
+        log('Connecting SDK...')
+        await metamaskSDK.connect()
+        log('SDK connected')
+        log('Requesting provider...')
+        const provider = await metamaskSDK.getProvider()
+        if (!provider) {
+            throw new Error("No provider")
+        }
+
+        const balance = await getBalance('morpheus1qsqqqqqqqqqqqqqqqqqqp93pdpyufy6ckyp90j64k282vq7gwjc9u7lsetm')
+        log(`Balance: ${balance}`)
+    } catch (e: any) {
+        console.error(e)
+        log(e?.message || String(e), true)
+    }
+}
+
+// testSignatures()
+testTransfer()

@@ -278,9 +278,10 @@ var _ = ginkgo.BeforeSuite(func() {
 	}
 	specs := []*rpcpb.BlockchainSpec{
 		{
-			VmName:      consts.Name,
-			Genesis:     vmGenesisPath,
-			ChainConfig: vmConfigPath,
+			VmName:          consts.Name,
+			BlockchainAlias: consts.Name,
+			Genesis:         vmGenesisPath,
+			ChainConfig:     vmConfigPath,
 			SubnetSpec: &rpcpb.SubnetSpec{
 				SubnetConfig: subnetConfigPath,
 				Participants: subnet,
