@@ -51,7 +51,39 @@ async function getBalance(address: string): Promise<bigint> {
     }
 }
 
+
+async function getNetwork(): Promise<{ networkId: number, subnetId: string, chainId: string }> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    try {
+        const response = await fetch(`http://localhost:9650/ext/bc/morpheusvm/coreapi`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                jsonrpc: "2.0",
+                method: "hypersdk.network",
+                params: {},
+                id: parseInt(String(Math.random()).slice(2))
+            }),
+            signal: controller.signal
+        });
+
+        return (await response.json()).result as { networkId: number, subnetId: string, chainId: string }
+    } catch (error: any) {
+        if (error.name === 'AbortError') {
+            throw new Error('Request timed out after 3 seconds');
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
 import { base64 } from '@scure/base';
+import { formatBalance } from './auth/EIP712PrivateKey';
 
 async function sendTx(txBytes: Uint8Array): Promise<void> {
     const controller = new AbortController();
@@ -187,8 +219,8 @@ async function testSignatures() {
 
 async function testTransfer() {
     try {
-        const balance = await getBalance('morpheus1qsqqqqqqqqqqqqqqqqqqp93pdpyufy6ckyp90j64k282vq7gwjc9u7lsetm')
-        log(`Balance: ${balance}`)
+        const balance = await getBalance('morpheus1q8rc050907hx39vfejpawjydmwe6uujw0njx9s6skzdpp3cm2he5s036p07')
+        log(`Balance: ${formatBalance(balance)}`)
 
 
 
@@ -202,7 +234,8 @@ async function testTransfer() {
         }
         log('Got provider')
 
-        const chainId = idStringToBigInt("1CQVviQZwdDXkAGNQ46grNfeyQK8mBJyG685KVQtW5qNpLfUU")
+        const chainIdStr = (await getNetwork()).chainId
+        const chainId = idStringToBigInt(chainIdStr)
         const chainIdSafe = safeChainId(chainId)
 
         //add chain
@@ -228,8 +261,8 @@ async function testTransfer() {
         const txSigner = new EIP712BrowserSigner(provider)
 
         const action = new TransferAction(
-            "morpheus1qrzvk4zlwj9zsacqgtufx7zvapd3quufqpxk5rsdd4633m4wz2fdjk97rwu",
-            123n * (10n ** 9n)
+            "morpheus1q8rc050907hx39vfejpawjydmwe6uujw0njx9s6skzdpp3cm2he5s036p07",
+            1n * (10n ** 9n)
         )
 
         const tx = new Transaction(
@@ -248,9 +281,9 @@ async function testTransfer() {
         let changed = false
         for (let i = 0; i < 10; i++) {
             await new Promise(resolve => setTimeout(resolve, 1000));
-            const balance2 = await getBalance('morpheus1qsqqqqqqqqqqqqqqqqqqp93pdpyufy6ckyp90j64k282vq7gwjc9u7lsetm');
+            const balance2 = await getBalance('morpheus1q8rc050907hx39vfejpawjydmwe6uujw0njx9s6skzdpp3cm2he5s036p07');
             if (balance !== balance2) {
-                log(`Balance changed from ${balance} to ${balance2}`)
+                log(`Balance changed from ${formatBalance(balance)} to ${formatBalance(balance2)}`)
                 changed = true
                 break
             }
