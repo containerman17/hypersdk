@@ -1,7 +1,7 @@
 
 
 
-import MetaMaskSDK from '@metamask/sdk'
+import MetaMaskSDK, { SDKProvider } from '@metamask/sdk'
 import { bytesToHex } from '@noble/hashes/utils';
 import { EIP712BrowserSigner } from './auth/EIP712Browser';
 import { TransferAction } from './actions/TransferAction';
@@ -83,7 +83,8 @@ async function getNetwork(): Promise<{ networkId: number, subnetId: string, chai
 }
 
 import { base64 } from '@scure/base';
-import { formatBalance } from './auth/EIP712PrivateKey';
+import { formatBalance, fromFormattedBalance } from './auth/EIP712PrivateKey';
+import { ETHAddrToEIP712Str } from './chain/Address';
 
 async function sendTx(txBytes: Uint8Array): Promise<void> {
     const controller = new AbortController();
@@ -217,22 +218,55 @@ async function testSignatures() {
     }
 }
 
-async function testTransfer() {
+
+document.getElementById("connect-wallet-btn")?.addEventListener("click", async (e) => {
+    e.preventDefault()
     try {
-        const balance = await getBalance('morpheus1q8rc050907hx39vfejpawjydmwe6uujw0njx9s6skzdpp3cm2he5s036p07')
-        log(`Balance: ${formatBalance(balance)}`)
-
-
+        document.getElementById("tx-signing-form")!.style.display = "block"
 
         log('Connecting SDK...')
         await metamaskSDK.connect()
         log('SDK connected')
+
         log('Requesting provider...')
-        const provider = await metamaskSDK.getProvider()
+        provider = await metamaskSDK.getProvider()
         if (!provider) {
             throw new Error("No provider")
         }
         log('Got provider')
+
+        const myAddress = (await provider.request({
+            method: "eth_accounts",
+        })) as string[]
+        if (!myAddress || myAddress.length === 0) {
+            throw new Error("No address")
+        }
+
+        (document.getElementById("wallet-address-eth") as HTMLInputElement).value = myAddress[0]
+
+        const hyperAddr = ETHAddrToEIP712Str(myAddress[0]);
+
+        (document.getElementById("wallet-address-hyper") as HTMLInputElement).value = hyperAddr
+    } catch (e: any) {
+        log(e?.message || String(e), true)
+    }
+})
+
+let provider: SDKProvider | undefined = undefined
+
+document.getElementById("sign-and-send-tx")?.addEventListener("click", async (e) => {
+    e.preventDefault();
+
+    try {
+        if (!provider) {
+            throw new Error("No provider")
+        }
+
+        const receiversAddress = (document.getElementById("receivers-address") as HTMLInputElement).value
+        const senderAddress = (document.getElementById("wallet-address-hyper") as HTMLInputElement).value
+
+        log(`Receiver's balance: ${formatBalance(await getBalance(receiversAddress))}`)
+        log(`Sender's balance: ${formatBalance(await getBalance(senderAddress))}`)
 
         const chainIdStr = (await getNetwork()).chainId
         const chainId = idStringToBigInt(chainIdStr)
@@ -257,22 +291,28 @@ async function testTransfer() {
 
         log("Switched to the new chain")
 
-
         const txSigner = new EIP712BrowserSigner(provider)
 
         const action = new TransferAction(
-            "morpheus1q8rc050907hx39vfejpawjydmwe6uujw0njx9s6skzdpp3cm2he5s036p07",
-            1n * (10n ** 9n)
+            receiversAddress,
+            fromFormattedBalance((document.getElementById("amount") as HTMLInputElement).value)
         )
 
         const tx = new Transaction(
             BigInt(Math.floor((new Date().getTime() + 1000 * 60 * 1) / 1000)) * 1000n,
             chainId,
-            10n * (10n ** 9n),
+            fromFormattedBalance((document.getElementById("max-fee") as HTMLInputElement).value),
             [action],
         )
 
         await tx.sign(txSigner);
+        const debugMsg = `EIP712 JSON: ${JSON.stringify(await txSigner._getMsgParams(tx), null, 2)}`
+        const eip712JsonElement = document.getElementById("eip712-json")
+        if (eip712JsonElement) {
+            eip712JsonElement.innerText = debugMsg
+        }
+
+        const sendersBalanceBeforeSend = await getBalance(senderAddress)
 
         await sendTx(tx.signedBytes!)
         log("Tx sent")
@@ -281,9 +321,9 @@ async function testTransfer() {
         let changed = false
         for (let i = 0; i < 10; i++) {
             await new Promise(resolve => setTimeout(resolve, 1000));
-            const balance2 = await getBalance('morpheus1q8rc050907hx39vfejpawjydmwe6uujw0njx9s6skzdpp3cm2he5s036p07');
-            if (balance !== balance2) {
-                log(`Balance changed from ${formatBalance(balance)} to ${formatBalance(balance2)}`)
+            const sendersBalanceAfterSend = await getBalance(senderAddress);
+            if (sendersBalanceBeforeSend !== sendersBalanceAfterSend) {
+                log(`Sender's balance changed`)
                 changed = true
                 break
             }
@@ -291,12 +331,16 @@ async function testTransfer() {
         if (!changed) {
             throw new Error("Balance did not change")
         }
+
+        log(`Receiver's balance: ${formatBalance(await getBalance(receiversAddress))}`)
+        log(`Sender's balance: ${formatBalance(await getBalance(senderAddress))}`)
+
         log("Test complete")
     } catch (e: any) {
         console.error(e)
         log(e?.message || String(e), true)
     }
-}
+})
 
 // testSignatures()
-testTransfer()
+// testTransfer()
