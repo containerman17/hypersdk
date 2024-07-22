@@ -5,6 +5,10 @@ import { EIP712PrivateKeySigner, recoverPublicKey } from "./EIP712PrivateKey";
 import { SDKProvider } from "@metamask/sdk";
 
 
+import { Buffer as BufferPolyfill } from 'buffer'
+globalThis.Buffer = BufferPolyfill//TODO: try to switch to ethers to avoid this
+
+
 export class EIP712BrowserSigner extends EIP712PrivateKeySigner {
     constructor(private provider: SDKProvider) {
         super("")

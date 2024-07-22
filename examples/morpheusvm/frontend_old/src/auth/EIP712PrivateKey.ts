@@ -9,7 +9,6 @@ import {
     fromRpcSig,
 } from '@ethereumjs/util';
 import { SigningKey } from "ethers";
-import { formatBalance } from "../utils/formatBalance";
 
 export const toGoStyleIsoString = (date: Date) => {
     return date.toISOString().slice(0, -5) + 'Z'
@@ -22,6 +21,20 @@ export function recoverPublicKey(
     const sigParams = fromRpcSig(signature);
     const uncompressed = ecrecover(messageHash, sigParams.v, sigParams.r, sigParams.s);
     return hexToBytes(SigningKey.computePublicKey(uncompressed, true).slice(2));
+}
+
+export const fromFormattedBalance = (balance: string, decimals: number = 9): bigint => {
+    const float = parseFloat(balance)
+    return BigInt(float * 10 ** decimals)
+}
+
+export const formatBalance = (balance: bigint, decimals: number = 9): string => {
+    //TODO: refactor
+    const divisor = 10n ** BigInt(decimals);
+    const quotient = balance / divisor;
+    const remainder = balance % divisor;
+    const paddedRemainder = remainder.toString().padStart(decimals, '0');
+    return `${quotient}.${paddedRemainder}`;
 }
 
 export class EIP712PrivateKeySigner implements AuthIface {

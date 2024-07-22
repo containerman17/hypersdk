@@ -1,0 +1,124 @@
+
+
+
+import MetaMaskSDK, { SDKProvider } from '@metamask/sdk'
+
+const metamaskSDK = new MetaMaskSDK({
+    dappMetadata: {
+        name: "Pure JS example",
+        url: window.location.origin,
+    },
+    logging: {
+        sdk: true,
+    }
+});
+
+
+// window.addEventListener("eip6963:announceProvider", (event) => {
+//     /* event.detail contains the discovered provider interface. */
+//     const providerDetail = event.detail
+
+//     /* providerDetail.info.rdns is the best way to distinguish a wallet extension. */
+//     if (providerDetail.info.rdns === "io.metamask.flask") {
+//         alert("MetaMask Flask successfully detected!")
+//         // Now you can use Snaps!
+//     } else {
+//         alert("Please install MetaMask Flask!")
+//     }
+// })
+
+// window.dispatchEvent(new Event("eip6963:requestProvider"))
+
+
+type Snap = {
+    permissionName: string;
+    id: string;
+    version: string;
+    initialPermissions: Record<string, unknown>;
+};
+type GetSnapsResponse = Record<string, Snap>;
+
+
+let provider: SDKProvider | undefined = undefined
+
+document.getElementById("reinstall-snap-btn")?.addEventListener("click", async (e) => {
+    e.preventDefault()
+    try {
+        await reinstallSnap()
+    } catch (e: any) {
+        log(e?.message || String(e), true)
+    }
+})
+
+document.getElementById("connect-wallet-btn")?.addEventListener("click", async (e) => {
+    e.preventDefault()
+    try {
+        document.getElementById("tx-signing-form")!.style.display = "block"
+
+        log('Connecting SDK...')
+        await metamaskSDK.connect()
+        log('SDK connected')
+
+        log('Requesting provider...')
+        provider = await metamaskSDK.getProvider()
+        if (!provider) {
+            throw new Error("No provider")
+        }
+        log('Got provider')
+
+        const providerversion = (await provider?.request({ method: "web3_clientVersion" })) as string || ""
+        const isFlask = providerversion.includes("flask")
+
+        if (!isFlask) {
+            throw new Error("Please install MetaMask Flask!")
+        }
+
+        log(`✅   Flask detected! ${providerversion}`)
+
+        const myAddress = (await provider.request({
+            method: "eth_accounts",
+        })) as string[]
+        if (!myAddress || myAddress.length === 0) {
+            throw new Error("No address")
+        }
+
+        const snaps = (await provider.request({
+            method: 'wallet_getSnaps',
+        })) as GetSnapsResponse;
+
+        if (Object.keys(snaps).length > 0) {
+            log('Snap is already installed')
+        } else {
+            await reinstallSnap()
+        }
+
+    } catch (e: any) {
+        log(e?.message || String(e), true)
+    }
+})
+
+async function reinstallSnap() {
+    log('Reinstalling snap...')
+    if (!provider) {
+        throw new Error("No provider")
+    }
+
+    (await provider.request({
+        method: 'wallet_requestSnaps',
+        params: {
+            ['local:http://localhost:8080']: {},
+        },
+    })) as Record<string, Snap>;
+}
+
+function log(message: string, isError: boolean = false) {
+    const div = document.createElement('div');
+    const now = new Date();
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
+    div.innerText = currentTime + ": " + message;
+    if (isError) {
+        div.style.color = 'red';
+    }
+    document.getElementById('log')?.appendChild(div);
+}
+
