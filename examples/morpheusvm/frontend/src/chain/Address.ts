@@ -3,6 +3,7 @@ import { getAddress } from 'ethers';
 
 // Constants
 const EIP712ID = 0x04; // Replace with the actual EIP712ID value
+const ED25519 = 0x00;
 const AddressLen = 33;
 
 export function EIP712AddrToETHAddr(addr: Uint8Array): string {
@@ -55,5 +56,14 @@ const HRP = 'morpheus';
 
 export function ETHAddrToEIP712Str(ethAddr: string): string {
     const eip712Addr = ETHAddrToEIP712Addr(ethAddr);
+    return bech32.encode(HRP, bech32.toWords(eip712Addr));
+}
+import { base58 } from '@scure/base';
+
+export function Base58PubKeyToED25519Addr(base58str: string): string {
+    const pubKeyBytes = base58.decode(base58str);
+    const eip712Addr = new Uint8Array(AddressLen);
+    eip712Addr[0] = ED25519;
+    eip712Addr.set(pubKeyBytes, 1);
     return bech32.encode(HRP, bech32.toWords(eip712Addr));
 }

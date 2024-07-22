@@ -20,6 +20,9 @@ export async function getBalance(address: string): Promise<bigint> {
         });
 
         const json = await response.json();
+        if (json?.error?.message) {
+            throw new Error(json.error.message)
+        }
         return BigInt(json.result.amount);
     } catch (error: any) {
         if (error.name === 'AbortError') {
