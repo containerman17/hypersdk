@@ -1,6 +1,6 @@
-import { formatBalance } from "../auth/EIP712PrivateKey";
 import { MiniPacker } from "../utils/MiniPacker";
 import { parseBech32 } from "../utils/bech32";
+import { formatBalance } from "../utils/formatBalance";
 import { AbstractAction, Byte } from "./AbstractAction";
 
 

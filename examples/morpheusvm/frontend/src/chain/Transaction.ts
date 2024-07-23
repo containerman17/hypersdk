@@ -1,4 +1,3 @@
-import { bytesToHex } from "@noble/hashes/utils";
 import { AbstractAction } from "../actions/AbstractAction";
 import { AuthIface } from "../auth/AuthIface";
 import { MiniPacker } from "../utils/MiniPacker"

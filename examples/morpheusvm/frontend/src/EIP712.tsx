@@ -1,9 +1,13 @@
 import { useState } from "react"
 import { ETHAddrToEIP712Str } from "./chain/Address"
-import { getBalance } from "./api"
-import { formatBalance } from "./utils/formatBalance"
+import { getBalance, getNetwork, sendTx } from "./api"
+import { formatBalance, fromFormattedBalance } from "./utils/formatBalance"
 import { getProvider } from "./sharedUI";
 import { Button } from "./Btn";
+import { METAMASK_MAX_SAFE_CHAIN_ID, idStringToBigInt, safeChainId } from "./chain/Id";
+import { EIP712BrowserSigner } from "./auth/EIP712Browser";
+import { TransferAction } from "./actions/TransferAction";
+import { Transaction } from "./chain/Transaction";
 
 
 
@@ -32,6 +36,38 @@ export function EIP712({ onHyperAddrChange, snapAddr }: {
         }
     }
 
+    async function sendTransaction() {
+        try {
+
+            const provider = await getProvider()
+
+            const chainIdStr = (await getNetwork()).chainId
+            const chainId = idStringToBigInt(chainIdStr)
+
+            const txSigner = new EIP712BrowserSigner(provider)
+
+            const action = new TransferAction(
+                snapAddr,
+                fromFormattedBalance("1.0")
+            )
+
+            const tx = new Transaction(
+                BigInt(Math.floor((new Date().getTime() + 1000 * 60 * 1) / 1000)) * 1000n,
+                chainId,
+                fromFormattedBalance("0.1"),
+                [action],
+            )
+
+            await tx.sign(txSigner);
+            logMessage(`Signed transaction`, "success")
+
+            await sendTx(tx.signedBytes!)
+        } catch (e) {
+            logMessage("Failed to send transaction: " + e, "error")
+            console.error(e)
+        }
+    }
+
     async function connectWallet() {
         try {
             const provider = await getProvider()
@@ -47,6 +83,32 @@ export function EIP712({ onHyperAddrChange, snapAddr }: {
             const hyperAddr = ETHAddrToEIP712Str(accounts[0])
             setHyperAddr(hyperAddr)
             onHyperAddrChange(hyperAddr)
+
+            const chainIdStr = (await getNetwork()).chainId
+            const chainId = idStringToBigInt(chainIdStr)
+            logMessage("Got chain ID: " + chainIdStr, "info")
+            const chainIdSafe = safeChainId(chainId)
+            logMessage("Got safe chain ID: " + chainIdSafe + " by dividing by " + METAMASK_MAX_SAFE_CHAIN_ID, "info")
+
+            //add chain
+            await provider.request({
+                method: "wallet_addEthereumChain",
+                params: [{
+                    chainId: `0x${chainIdSafe.toString(16)}`,
+                    rpcUrls: ["https://chain-id-echo.glitch.me/" + chainIdSafe],
+                    chainName: "HyperSDK Custom",
+                }]
+            });
+
+            logMessage("Chain added", "success")
+
+            await provider.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: `0x${chainIdSafe.toString(16)}` }],
+            });
+
+            logMessage(`Switched to the new chain 0x${chainIdSafe.toString(16)}`, "success")
+
         } catch (e) {
             logMessage("Failed to connect wallet: " + e, "error")
             console.error(e)
@@ -78,8 +140,8 @@ export function EIP712({ onHyperAddrChange, snapAddr }: {
                     <Button onClick={refreshBalance} variant="secondary">
                         Refresh balance
                     </Button>
-                    <Button onClick={refreshBalance} variant="primary" disabled={!snapAddr}>
-                        Send tokens to the Snap address
+                    <Button onClick={sendTransaction} variant="primary" disabled={!snapAddr}>
+                        Transfer 1 TKN
                     </Button>
                 </div >
             </>
