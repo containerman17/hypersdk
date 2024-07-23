@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { EIP712AddrToETHAddr, ETHAddrToEIP712Addr, ETHAddrToEIP712Str } from './Address';
+import { Base58PubKeyToED25519Addr, EIP712AddrToETHAddr, ETHAddrToEIP712Addr, ETHAddrToEIP712Str } from './Address';
 import { bech32 } from '@scure/base';
 
 describe('EIP712AddrToETHAddr', () => {
@@ -65,3 +65,12 @@ describe('ETHAddrToEIP712Str', () => {
         expect(ethAddrReversed).toBe(ethAddr);
     });
 });
+
+describe('Base58PubKeyToED25519Addr', () => {
+    it.only('should follow specs', () => {
+        const pubKeyBase58 = '2wqEBtJdxxWxAxpuy7Duu7TCvDm7H3ydEg6vZ7Ry4TeP'
+        const expectedAddress = 'morpheus1qztfzd0eeyp4evm6w6lede688pxry662n2kwewc0094p7r89ws56wm0u542'
+
+        expect(Base58PubKeyToED25519Addr(pubKeyBase58)).toBe(expectedAddress)
+    })
+})

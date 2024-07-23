@@ -1,5 +1,7 @@
 import { bech32 } from '@scure/base';
 import { getAddress } from 'ethers';
+import { sha256 } from '@noble/hashes/sha256';
+import { hexToBytes, bytesToHex } from "@noble/hashes/utils";
 
 // Constants
 const EIP712ID = 0x04; // Replace with the actual EIP712ID value
@@ -64,6 +66,7 @@ export function Base58PubKeyToED25519Addr(base58str: string): string {
     const pubKeyBytes = base58.decode(base58str);
     const eip712Addr = new Uint8Array(AddressLen);
     eip712Addr[0] = ED25519;
-    eip712Addr.set(pubKeyBytes, 1);
+    const pubKeyHash = sha256(pubKeyBytes);
+    eip712Addr.set(pubKeyHash, 1);
     return bech32.encode(HRP, bech32.toWords(eip712Addr));
 }

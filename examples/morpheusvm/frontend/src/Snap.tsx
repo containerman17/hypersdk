@@ -1,10 +1,13 @@
 import { useState } from "react"
 import { getProvider } from "./sharedUI"
 import { Button } from "./Btn"
-import { SDKProvider } from "@metamask/sdk";
-import { getBalance } from "./api";
-import { formatBalance } from "./utils/formatBalance";
+import { getBalance, getNetwork, sendTx } from "./api";
+import { formatBalance, fromFormattedBalance } from "./utils/formatBalance";
 import { Base58PubKeyToED25519Addr } from "./chain/Address";
+import { MetamaskSnapSigner, invokeSnap } from "./auth/MetamaskSnap";
+import { idStringToBigInt } from "./chain/Id";
+import { TransferAction } from "./actions/TransferAction";
+import { Transaction } from "./chain/Transaction";
 
 
 
@@ -16,21 +19,6 @@ type Snap = {
 };
 type GetSnapsResponse = Record<string, Snap>;
 
-type InvokeSnapParams = {
-    method: string;
-    params?: Record<string, unknown>;
-};
-
-const invokeSnap = async (provider: SDKProvider, { method, params }: InvokeSnapParams) =>
-    provider.request({
-        method: 'wallet_invokeSnap',
-        params: {
-            snapId: "local:http://localhost:8080",
-            request: params ? { method, params } : { method },
-        },
-    });
-
-
 interface SnapProps {
     eip712HyperAddr: string
     onAddrChanged: (addr: string) => void
@@ -39,6 +27,53 @@ export function Snap({ eip712HyperAddr, onAddrChanged }: SnapProps) {
     const [log, setLog] = useState("")
     const logMessage = (message: string, type: "success" | "error" | "info") => {
         setLog(log => log.trim() + "\n" + (type === "success" ? "✅" : type === "error" ? "❌" : "ℹ️") + " " + message)
+    }
+
+    async function sendTransaction() {
+        try {
+
+            const provider = await getProvider()
+
+            const chainIdStr = (await getNetwork()).chainId
+            const chainId = idStringToBigInt(chainIdStr)
+
+            const txSigner = new MetamaskSnapSigner(provider)
+
+            const action = new TransferAction(
+                eip712HyperAddr,
+                fromFormattedBalance("1.0")
+            )
+
+            const tx = new Transaction(
+                BigInt(Math.floor((new Date().getTime() + 1000 * 60 * 1) / 1000)) * 1000n,
+                chainId,
+                fromFormattedBalance("0.1"),
+                [action],
+            )
+
+            const receiverBalanceBefore = formatBalance(await getBalance(eip712HyperAddr))
+
+            await tx.sign(txSigner);
+            logMessage(`Signed transaction`, "success")
+
+            await sendTx(tx.signedBytes!)
+
+            logMessage("Transaction sent", "success")
+            logMessage(`Waiting for receiver balance to increase from ${receiverBalanceBefore}`, "info")
+
+            const startTime = Number(new Date())
+            for (let i = 0; i < 200; i++) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                const receiverBalanceAfter = formatBalance(await getBalance(eip712HyperAddr))
+                if (receiverBalanceAfter !== receiverBalanceBefore) {
+                    logMessage(`Receiver balance increased from ${receiverBalanceBefore} to ${receiverBalanceAfter} in ${((Number(new Date()) - startTime) / 1000).toFixed(2)}s`, "success")
+                    break
+                }
+            }
+        } catch (e) {
+            logMessage("Failed to send transaction: " + e, "error")
+            console.error(e)
+        }
     }
 
 
@@ -77,9 +112,6 @@ export function Snap({ eip712HyperAddr, onAddrChanged }: SnapProps) {
                 } else {
                     logMessage(`Snap not installed`, "error")
                 }
-
-
-
             }
 
             logMessage(`Getting public key...`, "info")
@@ -143,8 +175,8 @@ export function Snap({ eip712HyperAddr, onAddrChanged }: SnapProps) {
                     <Button onClick={refreshBalance} variant="secondary">
                         Refresh balance
                     </Button>
-                    <Button onClick={refreshBalance} variant="primary" disabled={!eip712HyperAddr}>
-                        Send tokens to the Snap address
+                    <Button onClick={sendTransaction} variant="primary" disabled={!eip712HyperAddr}>
+                        Send 1 TKN
                     </Button>
                 </div >
             </>)

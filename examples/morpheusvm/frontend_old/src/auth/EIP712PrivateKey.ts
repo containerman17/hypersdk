@@ -107,6 +107,8 @@ export class EIP712PrivateKeySigner implements AuthIface {
         const messageHash = TypedDataUtils.eip712Hash(msgParams, SignTypedDataVersion.V4)
         const publicKey = recoverPublicKey(messageHash, sigHex);
         this._signer = publicKey
+
+
         return hexToBytes(sigHex.slice(2))
     }
 }
