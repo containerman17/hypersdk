@@ -58,10 +58,25 @@ export function EIP712({ onHyperAddrChange, snapAddr }: {
                 [action],
             )
 
+            const receiverBalanceBefore = formatBalance(await getBalance(snapAddr))
+
             await tx.sign(txSigner);
             logMessage(`Signed transaction`, "success")
 
             await sendTx(tx.signedBytes!)
+
+            logMessage("Transaction sent", "success")
+            logMessage(`Waiting for receiver balance to increase from ${receiverBalanceBefore}`, "info")
+
+            const startTime = Number(new Date())
+            for (let i = 0; i < 200; i++) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                const receiverBalanceAfter = formatBalance(await getBalance(snapAddr))
+                if (receiverBalanceAfter !== receiverBalanceBefore) {
+                    logMessage(`Receiver balance increased from ${receiverBalanceBefore} to ${receiverBalanceAfter} in ${((Number(new Date()) - startTime) / 1000).toFixed(2)}s`, "success")
+                    break
+                }
+            }
         } catch (e) {
             logMessage("Failed to send transaction: " + e, "error")
             console.error(e)
