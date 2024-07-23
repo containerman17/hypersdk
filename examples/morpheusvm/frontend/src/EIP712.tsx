@@ -156,7 +156,7 @@ export function EIP712({ onHyperAddrChange, snapAddr }: {
                         Refresh balance
                     </Button>
                     <Button onClick={sendTransaction} variant="primary" disabled={!snapAddr}>
-                        Transfer 1 TKN
+                        ✈️ Transfer 1 TKN
                     </Button>
                 </div >
             </>

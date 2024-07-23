@@ -2,12 +2,11 @@ import { useState } from "react"
 import { getProvider } from "./sharedUI"
 import { Button } from "./Btn"
 import { getBalance, getNetwork, sendTx } from "./api";
-import { formatBalance, fromFormattedBalance } from "./utils/formatBalance";
+import { formatBalance } from "./utils/formatBalance";
 import { Base58PubKeyToED25519Addr } from "./chain/Address";
-import { MetamaskSnapSigner, invokeSnap } from "./auth/MetamaskSnap";
+import { invokeSnap } from "./auth/MetamaskSnap";
 import { idStringToBigInt } from "./chain/Id";
-import { TransferAction } from "./actions/TransferAction";
-import { Transaction } from "./chain/Transaction";
+import { base58 } from '@scure/base';
 
 
 
@@ -37,26 +36,18 @@ export function Snap({ eip712HyperAddr, onAddrChanged }: SnapProps) {
             const chainIdStr = (await getNetwork()).chainId
             const chainId = idStringToBigInt(chainIdStr)
 
-            const txSigner = new MetamaskSnapSigner(provider)
+            //derivationPath, to, amount, maxFee, chainId
+            logMessage("Waiting for snap to sign transaction...", "info")
+            const signedtxbase58 = await invokeSnap(provider, { method: 'signTransfer', params: { derivationPath: ["0'"], to: eip712HyperAddr, amount: "1.0", maxFee: "0.1", chainId: String((chainId)) } }) as string | undefined
+            logMessage("Transaction signed", "success")
 
-            const action = new TransferAction(
-                eip712HyperAddr,
-                fromFormattedBalance("1.0")
-            )
-
-            const tx = new Transaction(
-                BigInt(Math.floor((new Date().getTime() + 1000 * 60 * 1) / 1000)) * 1000n,
-                chainId,
-                fromFormattedBalance("0.1"),
-                [action],
-            )
+            if (!signedtxbase58) {
+                throw "Failed to sign transaction"
+            }
 
             const receiverBalanceBefore = formatBalance(await getBalance(eip712HyperAddr))
 
-            await tx.sign(txSigner);
-            logMessage(`Signed transaction`, "success")
-
-            await sendTx(tx.signedBytes!)
+            await sendTx(base58.decode(signedtxbase58))
 
             logMessage("Transaction sent", "success")
             logMessage(`Waiting for receiver balance to increase from ${receiverBalanceBefore}`, "info")
@@ -77,6 +68,30 @@ export function Snap({ eip712HyperAddr, onAddrChanged }: SnapProps) {
     }
 
 
+
+    async function reinstallSnap() {
+        const provider = await getProvider()
+
+        logMessage('Installing snap...', "info")
+        await provider.request({
+            method: 'wallet_requestSnaps',
+            params: {
+                ['local:http://localhost:8080']: {},
+            },
+        })
+        logMessage(`Snap installed`, "success")
+
+        const snaps = (await provider.request({
+            method: 'wallet_getSnaps',
+        })) as GetSnapsResponse;
+
+        if (Object.keys(snaps).length > 0) {
+            logMessage(`Snap installed`, "success")
+        } else {
+            logMessage(`Snap not installed`, "error")
+        }
+    }
+
     async function connectWallet() {
         try {
             const provider = await getProvider()
@@ -94,24 +109,7 @@ export function Snap({ eip712HyperAddr, onAddrChanged }: SnapProps) {
             if (Object.keys(snaps).length > 0) {
                 logMessage('Snap is already installed', "success")
             } else {
-                logMessage('Installing snap...', "info")
-                await provider.request({
-                    method: 'wallet_requestSnaps',
-                    params: {
-                        ['local:http://localhost:8080']: {},
-                    },
-                })
-                logMessage(`Snap installed`, "success")
-
-                const snaps = (await provider.request({
-                    method: 'wallet_getSnaps',
-                })) as GetSnapsResponse;
-
-                if (Object.keys(snaps).length > 0) {
-                    logMessage(`Snap installed`, "success")
-                } else {
-                    logMessage(`Snap not installed`, "error")
-                }
+                await reinstallSnap()
             }
 
             logMessage(`Getting public key...`, "info")
@@ -149,6 +147,7 @@ export function Snap({ eip712HyperAddr, onAddrChanged }: SnapProps) {
         }
     }
 
+
     return (<>
         {!myAddress &&
             (<div className="mt-8">
@@ -176,7 +175,10 @@ export function Snap({ eip712HyperAddr, onAddrChanged }: SnapProps) {
                         Refresh balance
                     </Button>
                     <Button onClick={sendTransaction} variant="primary" disabled={!eip712HyperAddr}>
-                        Send 1 TKN
+                        ✈️ Transfer 1 TKN
+                    </Button>
+                    <Button onClick={reinstallSnap} variant="primary">
+                        🛠️ Reinstall snap
                     </Button>
                 </div >
             </>)

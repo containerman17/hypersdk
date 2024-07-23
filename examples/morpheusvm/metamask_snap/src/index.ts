@@ -4,6 +4,7 @@ import bs58 from 'bs58';
 import nacl from 'tweetnacl';
 import { SLIP10Node } from '@metamask/key-tree';
 
+
 export const onRpcRequest: OnRpcRequestHandler = async ({
     origin,
     request,
@@ -66,6 +67,89 @@ handlers['signTransaction'] = async ({ origin, request }) => {
         publicKey: bs58.encode(keyPair.publicKey),
         signature: bs58.encode(signature)
     };
+}
+
+
+import { fromFormattedBalance, formatBalance } from "../../frontend/src/utils/formatBalance"
+import { Transaction } from "../../frontend/src/chain/Transaction"
+import { TransferAction } from "../../frontend/src/actions/TransferAction"
+
+handlers['signTransfer'] = async ({ origin, request }) => {
+    const dappHost = (new URL(origin))?.host;
+
+    const { derivationPath, to, amount, maxFee, chainId } = (request.params || {}) as { derivationPath?: string[], to?: string, amount?: string, maxFee?: string, chainId?: string };
+
+    console.log("Before assertInput", { to, amount, maxFee, chainId });
+
+    assertInput(to);
+    assertInput(amount);
+    assertInput(maxFee);
+    assertInput(chainId);
+
+    console.log("After assertInput", { to, amount, maxFee, chainId });
+
+    const keyPair = await deriveKeyPair(derivationPath || []);
+
+    console.log("After deriveKeyPair", { keyPair });
+
+    const action = new TransferAction(
+        to,
+        fromFormattedBalance(amount)
+    )
+
+    console.log("After action", { action });
+
+    const tx = new Transaction(
+        BigInt(Math.floor((new Date().getTime() + 1000 * 60 * 1) / 1000)) * BigInt(1000),
+        BigInt(chainId),
+        fromFormattedBalance(amount),
+        [action],
+    )
+
+    console.log("After tx", { tx });
+
+    const ED25519_AUTH_BYTE = 0x00;
+    const digest = tx.digest()
+
+    console.log("After digest", { digest });
+
+    const accepted = await snap.request({
+        method: 'snap_dialog',
+        params: {
+            type: 'confirmation',
+            content: panel([
+                heading('Sign transaction'),
+
+                text("Transfer"),
+                divider(),
+
+                text("Amount"),
+                copyable(amount),
+                divider(),
+
+                text("Receiver"),
+                copyable(to),
+                divider(),
+
+                text("Maximum fee"),
+                copyable(maxFee),
+                divider(),
+            ])
+        }
+    });
+
+    console.log("After accepted", { accepted });
+
+    assertConfirmation(!!accepted);
+
+    console.log("After assertConfirmation", { accepted });
+
+    const signature = nacl.sign.detached(digest, keyPair.secretKey);
+    const signedTxBytes = new Uint8Array([...Array.from(digest), ED25519_AUTH_BYTE, ...Array.from(keyPair.publicKey), ...Array.from(signature)]);
+
+    console.log("After signedTxBytes", { signedTxBytes });
+
+    return bs58.encode(signedTxBytes);
 }
 
 handlers['hello'] = ({ origin, request }) => {
